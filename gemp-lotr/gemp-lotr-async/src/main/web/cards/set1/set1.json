@@ -9,7 +9,7 @@
     "effects": [
       {
         "type": "activatedTrigger",
-        "condition": {
+        "condition": [
           "type": "ringIsActive"
         },
         "trigger": {
