@@ -12,12 +12,11 @@ import com.gempukku.lotro.game.ChatCommunicationChannel;
 import com.gempukku.lotro.game.Player;
 import com.gempukku.polling.LongPollingResource;
 import com.gempukku.polling.LongPollingSystem;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import org.apache.commons.lang.StringEscapeUtils;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.handler.codec.http.HttpMethod;
-import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.QueryStringDecoder;
-import org.jboss.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -29,16 +28,16 @@ import java.util.*;
 
 public class ChatRequestHandler extends LotroServerRequestHandler implements UriRequestHandler {
     private ChatServer _chatServer;
-    private LongPollingSystem _longPollingSystem;
+    private LongPollingSystem longPollingSystem;
 
-    public ChatRequestHandler(Map<Type, Object> context) {
+    public ChatRequestHandler(Map<Type, Object> context, LongPollingSystem longPollingSystem) {
         super(context);
         _chatServer = extractObject(context, ChatServer.class);
-        _longPollingSystem = extractObject(context, LongPollingSystem.class);
+        this.longPollingSystem = longPollingSystem;
     }
 
     @Override
-    public void handleRequest(String uri, HttpRequest request, Map<Type, Object> context, ResponseWriter responseWriter, MessageEvent e) throws Exception {
+    public void handleRequest(String uri, HttpRequest request, Map<Type, Object> context, ResponseWriter responseWriter, String remoteIp) throws Exception {
         if (uri.startsWith("/") && request.getMethod() == HttpMethod.GET) {
             getMessages(request, URLDecoder.decode(uri.substring(1)), responseWriter);
         } else if (uri.startsWith("/") && request.getMethod() == HttpMethod.POST) {
@@ -67,7 +66,7 @@ public class ChatRequestHandler extends LotroServerRequestHandler implements Uri
             } else {
                 ChatCommunicationChannel pollableResource = chatRoom.getChatRoomListener(resourceOwner.getName());
                 ChatUpdateLongPollingResource polledResource = new ChatUpdateLongPollingResource(chatRoom, room, resourceOwner.getName(), admin, responseWriter);
-                _longPollingSystem.processLongPollingResource(polledResource, pollableResource);
+                longPollingSystem.processLongPollingResource(polledResource, pollableResource);
             }
         } catch (SubscriptionExpiredException exp) {
             throw new HttpProcessingException(410);

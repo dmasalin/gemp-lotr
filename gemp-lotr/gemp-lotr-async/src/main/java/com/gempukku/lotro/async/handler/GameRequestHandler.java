@@ -15,9 +15,13 @@ import com.gempukku.lotro.game.state.GameCommunicationChannel;
 import com.gempukku.lotro.game.state.GameEvent;
 import com.gempukku.polling.LongPollingResource;
 import com.gempukku.polling.LongPollingSystem;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.handler.codec.http.*;
-import org.jboss.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.cookie.Cookie;
+import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
+import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -32,13 +36,13 @@ import java.util.Set;
 
 public class GameRequestHandler extends LotroServerRequestHandler implements UriRequestHandler {
     private LotroServer _lotroServer;
+    private LongPollingSystem longPollingSystem;
     private Set<Phase> _autoPassDefault = new HashSet<Phase>();
-    private LongPollingSystem _longPollingSystem;
 
-    public GameRequestHandler(Map<Type, Object> context) {
+    public GameRequestHandler(Map<Type, Object> context, LongPollingSystem longPollingSystem) {
         super(context);
         _lotroServer = extractObject(context, LotroServer.class);
-        _longPollingSystem = extractObject(context, LongPollingSystem.class);
+        this.longPollingSystem = longPollingSystem;
 
         _autoPassDefault.add(Phase.FELLOWSHIP);
         _autoPassDefault.add(Phase.MANEUVER);
@@ -48,7 +52,7 @@ public class GameRequestHandler extends LotroServerRequestHandler implements Uri
     }
 
     @Override
-    public void handleRequest(String uri, HttpRequest request, Map<Type, Object> context, ResponseWriter responseWriter, MessageEvent e) throws Exception {
+    public void handleRequest(String uri, HttpRequest request, Map<Type, Object> context, ResponseWriter responseWriter, String remoteIp) throws Exception {
         if (uri.startsWith("/") && uri.endsWith("/cardInfo") && request.getMethod() == HttpMethod.GET) {
             getCardInfo(request, uri.substring(1, uri.length() - 9), responseWriter);
         } else if (uri.startsWith("/") && uri.endsWith("/concede") && request.getMethod() == HttpMethod.POST) {
@@ -88,7 +92,7 @@ public class GameRequestHandler extends LotroServerRequestHandler implements Uri
 
             GameCommunicationChannel pollableResource = gameMediator.getCommunicationChannel(resourceOwner, channelNumber);
             GameUpdateLongPollingResource pollingResource = new GameUpdateLongPollingResource(pollableResource, channelNumber, gameMediator, resourceOwner, responseWriter);
-            _longPollingSystem.processLongPollingResource(pollingResource, pollableResource);
+            longPollingSystem.processLongPollingResource(pollingResource, pollableResource);
         } catch (SubscriptionConflictException exp) {
             throw new HttpProcessingException(409);
         } catch (PrivateInformationException e) {
@@ -221,13 +225,13 @@ public class GameRequestHandler extends LotroServerRequestHandler implements Uri
     }
 
     private Set<Phase> getAutoPassPhases(HttpRequest request) {
-        CookieDecoder cookieDecoder = new CookieDecoder();
-        String cookieHeader = request.getHeader(HttpHeaders.Names.COOKIE);
+        ServerCookieDecoder cookieDecoder = ServerCookieDecoder.STRICT;
+        String cookieHeader = request.headers().get(HttpHeaderNames.COOKIE);
         if (cookieHeader != null) {
             Set<Cookie> cookies = cookieDecoder.decode(cookieHeader);
             for (Cookie cookie : cookies) {
-                if (cookie.getName().equals("autoPassPhases")) {
-                    final String[] phases = cookie.getValue().split("0");
+                if (cookie.name().equals("autoPassPhases")) {
+                    final String[] phases = cookie.value().split("0");
                     Set<Phase> result = new HashSet<Phase>();
                     for (String phase : phases)
                         result.add(Phase.valueOf(phase));
@@ -235,7 +239,7 @@ public class GameRequestHandler extends LotroServerRequestHandler implements Uri
                 }
             }
             for (Cookie cookie : cookies) {
-                if (cookie.getName().equals("autoPass") && cookie.getValue().equals("false"))
+                if (cookie.name().equals("autoPass") && cookie.value().equals("false"))
                     return Collections.emptySet();
             }
         }

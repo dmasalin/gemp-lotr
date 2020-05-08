@@ -19,11 +19,10 @@ import com.gempukku.lotro.league.LeagueService;
 import com.gempukku.lotro.logic.GameUtils;
 import com.gempukku.polling.LongPollingResource;
 import com.gempukku.polling.LongPollingSystem;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.handler.codec.http.HttpMethod;
-import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.QueryStringDecoder;
-import org.jboss.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -41,22 +40,22 @@ public class HallRequestHandler extends LotroServerRequestHandler implements Uri
     private HallServer _hallServer;
     private LeagueService _leagueService;
     private LotroCardBlueprintLibrary _library;
-    private LongPollingSystem _longPollingSystem;
     private LotroServer _lotroServer;
+    private LongPollingSystem longPollingSystem;
 
-    public HallRequestHandler(Map<Type, Object> context) {
+    public HallRequestHandler(Map<Type, Object> context, LongPollingSystem longPollingSystem) {
         super(context);
         _collectionManager = extractObject(context, CollectionsManager.class);
         _formatLibrary = extractObject(context, LotroFormatLibrary.class);
         _hallServer = extractObject(context, HallServer.class);
         _leagueService = extractObject(context, LeagueService.class);
         _library = extractObject(context, LotroCardBlueprintLibrary.class);
-        _longPollingSystem = extractObject(context, LongPollingSystem.class);
         _lotroServer = extractObject(context, LotroServer.class);
+        this.longPollingSystem = longPollingSystem;
     }
 
     @Override
-    public void handleRequest(String uri, HttpRequest request, Map<Type, Object> context, ResponseWriter responseWriter, MessageEvent e) throws Exception {
+    public void handleRequest(String uri, HttpRequest request, Map<Type, Object> context, ResponseWriter responseWriter, String remoteIp) throws Exception {
         if (uri.equals("") && request.getMethod() == HttpMethod.GET) {
             getHall(request, responseWriter);
         } else if (uri.equals("") && request.getMethod() == HttpMethod.POST) {
@@ -304,7 +303,7 @@ public class HallRequestHandler extends LotroServerRequestHandler implements Uri
         try {
             HallCommunicationChannel pollableResource = _hallServer.getCommunicationChannel(resourceOwner, channelNumber);
             HallUpdateLongPollingResource polledResource = new HallUpdateLongPollingResource(pollableResource, request, resourceOwner, responseWriter);
-            _longPollingSystem.processLongPollingResource(polledResource, pollableResource);
+            longPollingSystem.processLongPollingResource(polledResource, pollableResource);
         } catch (SubscriptionExpiredException exp) {
             responseWriter.writeError(410);
         } catch (SubscriptionConflictException exp) {
