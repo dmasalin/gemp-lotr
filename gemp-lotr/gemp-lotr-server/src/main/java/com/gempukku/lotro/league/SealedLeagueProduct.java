@@ -16,6 +16,7 @@ public class SealedLeagueProduct {
         createFellowshipBlock();
         createTowersBlock();
         createMovieBlock();
+        createMovieMultipath();
         createWarOfTheRingBlock();
         createHuntersBlock();
         createMovieSpecialBlock();
@@ -111,6 +112,30 @@ public class SealedLeagueProduct {
         kingBlock.add(fourthWeek);
 
         _collections.put(SealedLeagueType.MOVIE_BLOCK.getSealedCode(), kingBlock);
+    }
+    
+ private void createMovieMultipath() {
+        List<CardCollection> movieSpecialBlock = new ArrayList<CardCollection>();
+
+        MutableCardCollection firstWeek = new DefaultCardCollection();
+        firstWeek.addItem("(S)MM - Starter", 1);
+        firstWeek.addItem("FotR - Booster", 1);
+        firstWeek.addItem("MoM - Booster", 1);
+        firstWeek.addItem("RotEL - Booster", 1);
+        firstWeek.addItem("TTT - Booster", 1);
+        firstWeek.addItem("BoHD - Booster", 1);
+        firstWeek.addItem("EoF - Booster", 1);
+        firstWeek.addItem("RotK - Booster", 1);
+        firstWeek.addItem("SoG - Booster", 1);
+        firstWeek.addItem("MD - Booster", 1);
+        firstWeek.addItem("REF - Booster", 2);
+        firstWeek.addItem("(S)Movie Booster Choice", 5);
+        firstWeek.addItem("1_231", 1);
+        firstWeek.addItem("2_51", 1);
+        firstWeek.addItem("4_249", 1);
+        movieMultipath.add(firstWeek);
+
+        _collections.put(SealedLeagueType.MOVIE_MULTIPATH.getSealedCode(), movieSpecialBlock);
     }
 
     private void createMovieSpecialBlock() {
