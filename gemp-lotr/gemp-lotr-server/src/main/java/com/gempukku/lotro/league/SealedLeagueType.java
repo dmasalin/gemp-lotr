@@ -4,6 +4,7 @@ public enum SealedLeagueType {
     FOTR_BLOCK("fotr_block", "limited_fotr"),
     TTT_BLOCK("ttt_block", "limited_ttt"),
     MOVIE_BLOCK("movie", "limited_king"),
+    MOVIE_MULTIPATH("movie_multipath", "limited_multipath"),
     WAR_BLOCK("war_block", "limited_shadows"),
     HUNTERS_BLOCK("hunters_block", "limited_hunters"),
     MOVIE_SPECIAL_BLOCK("movie_special", "limited_king"),
