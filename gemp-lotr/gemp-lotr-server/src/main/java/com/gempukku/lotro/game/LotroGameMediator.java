@@ -201,6 +201,11 @@ public class LotroGameMediator {
             if (card == null || card.getZone() == null)
                 return null;
 
+            boolean visible = card.getZone().isPublic()
+                    || (player.getName().equals(card.getOwner()) && card.getZone().isVisibleByOwner());
+            if (!visible)
+                return null;
+
             if (card.getZone().isInPlay() || card.getZone() == Zone.HAND) {
                 StringBuilder sb = new StringBuilder();
 
