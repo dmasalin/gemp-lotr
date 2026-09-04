@@ -128,7 +128,7 @@
 			cost: {
 				type: exert
 				select: choose(dwarf,damage,CanExert)
-				times: 1
+				times: 2
 				memorize: exertedDwarf
 			},
 			effect: [
