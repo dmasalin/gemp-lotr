@@ -442,3 +442,5 @@ gl_theOneRing,1_2
 9_61,9_41
 #Eomer, TMOR FA - 2026-06 WC Circuit
 4_370,4_267
+#Hobbit Party Guest FA - 2026 WC Circuit
+1_405,1_297
