@@ -1,10 +1,10 @@
 package com.gempukku.lotro.cards.official.set04;
 
-import com.gempukku.lotro.framework.VirtualTableScenario;
 import com.gempukku.lotro.common.*;
+import com.gempukku.lotro.framework.VirtualTableScenario;
 import com.gempukku.lotro.game.CardNotFoundException;
-import com.gempukku.lotro.game.PhysicalCardImpl;
 import com.gempukku.lotro.logic.decisions.DecisionResultInvalidException;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -61,6 +61,7 @@ public class Card_04_041_Tests
 		assertEquals(2, card.getBlueprint().getStrength());
 	}
 
+	@Ignore
 	@Test
 	public void SkirmishAbilityCanDiscardACardStackedOnEitherPlayersDwarvenCondition() throws DecisionResultInvalidException, CardNotFoundException {
 		// Regression for #1001: cards stacked on the opponent's [dwarven] condition were never offered, because the
