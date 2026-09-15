@@ -914,8 +914,10 @@
 					limit: 1
 				}
 				{
-					type: IsSide
-					side: Freeps
+					# "at Rivendell Waterfall" is a name-drop, not a self-reference: a card copying this text (Silinde)
+					# only gets the bonus while the fellowship is actually at a Rivendell Waterfall (#1045).
+					type: location
+					filter: name(Rivendell Waterfall)
 				}
 			]
 			effect: [

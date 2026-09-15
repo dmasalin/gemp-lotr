@@ -1570,6 +1570,8 @@ var PCCards = {
 	'9_61': 'https://i.lotrtcgpc.net/promos/LOTR-EN09U041.0_card.jpg',
 	//Eomer, TMOR FA - 2026-06 WC Circuit
 	'4_370': 'https://i.lotrtcgpc.net/promos/LOTR-EN04U267.0_card.jpg',
-	
+	//Hobbit Party Guest FA - 2026 WC Circuit
+	'1_405': 'https://i.lotrtcgpc.net/promos/LOTR-EN01U297.0_card.jpg',
+
 }
 
