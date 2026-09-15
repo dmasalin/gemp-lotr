@@ -19,7 +19,8 @@ public class Card_08_003_ErrataTests
 				new HashMap<>()
 				{{
 					put("card", "58_3");
-					// put other cards in here as needed for the test case
+					put("gimli", "8_5");
+					put("runner", "1_178");
 				}},
 				VirtualTableScenario.FellowshipSites,
 				VirtualTableScenario.FOTRFrodo,
@@ -56,28 +57,26 @@ public class Card_08_003_ErrataTests
 		assertEquals(2, card.getBlueprint().getTwilightCost());
 	}
 
-	// Uncomment any @Test markers below once this is ready to be used
-	//@Test
+	@Test
 	public void BloodRunsChillTest1() throws DecisionResultInvalidException, CardNotFoundException {
-		//Pre-game setup
 		var scn = GetScenario();
 
 		var card = scn.GetFreepsCard("card");
+		var gimli = scn.GetFreepsCard("gimli");
+		var runner = scn.GetShadowCard("runner");
+		scn.MoveCompanionsToTable(gimli);
 		scn.MoveCardsToHand(card);
-		scn.MoveCompanionsToTable(card);
-		scn.MoveCardsToSupportArea(card);
-		scn.MoveCardsToDiscard(card);
-		scn.MoveCardsToTopOfDeck(card);
-
-		//var card = scn.GetShadowCard("card");
-		scn.MoveCardsToHand(card);
-		scn.MoveMinionsToTable(card);
-		scn.MoveCardsToSupportArea(card);
-		scn.MoveCardsToDiscard(card);
-		scn.MoveCardsToTopOfDeck(card);
+		scn.MoveCardsToSupportArea(runner);
 
 		scn.StartGame();
-		
-		assertFalse(true);
+		scn.SkipToMovementDecision();
+
+		assertEquals(0, scn.GetWoundsOn(gimli));
+		assertFalse(scn.IsHindered(runner));
+		scn.FreepsChooseToMove();
+		scn.FreepsPlayCard(card);
+
+		assertEquals(1, scn.GetWoundsOn(gimli));
+		assertTrue(scn.IsHindered(runner));
 	}
 }
