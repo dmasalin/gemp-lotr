@@ -85,6 +85,7 @@ class Card {
             cached = {
                 imageUrl:Card.getImageUrl(blueprintid),
                 backSideImageUrl:Card.getBackSideUrl(blueprintid),
+                incomplete:Card.isIncomplete(blueprintid),
                 errata:Card.isErrata(blueprintid)
             };
             
@@ -103,6 +104,7 @@ class Card {
             cached = {
                 imageUrl:Card.getImageUrl(tengwarid, true),
                 backSideImageUrl:Card.getBackSideUrl(tengwarid),
+                incomplete:Card.isIncomplete(tengwarid),
                 errata:Card.isErrata(tengwarid)
             };
             
@@ -250,14 +252,17 @@ class Card {
             var cardFromCache = Card.CardCache[this.bareBlueprint];
             this.imageUrl = cardFromCache.imageUrl;
             this.backSideImageUrl = cardFromCache.backSideImageUrl;
+            this.incomplete = cardFromCache.incomplete;
         } else {
             this.imageUrl = Card.getImageUrl(this.bareBlueprint);
             this.backSideImageUrl = Card.getBackSideUrl(this.bareBlueprint);
+            this.incomplete = Card.isIncomplete(this.bareBlueprint);
 
             if (this.bareBlueprint != "-1_1" && this.bareBlueprint != "-1_2") {
                 Card.CardCache[this.bareBlueprint] = {
                     imageUrl:this.imageUrl,
-                    backSideImageUrl:this.backSideImageUrl
+                    backSideImageUrl:this.backSideImageUrl,
+                    incomplete:this.incomplete
                 };
             }
         }
@@ -388,6 +393,19 @@ class Card {
         return Card.isBlueprintHorizontal(blueprintId);
     }
 
+    static isIncomplete(blueprintId) {
+        var separator = blueprintId.indexOf("_");
+        var setNo = parseInt(blueprintId.substr(0, separator));
+        var cardNo = parseInt(blueprintId.substr(separator + 1));
+        
+        // 400-599 are in-development sets, except 404: the "Future Prize" placeholders, which have a finished image
+        if (setNo >= 400 && setNo < 600 && setNo != 404) {
+            return true;
+        }
+
+        return false;
+    }
+    
     static isErrata(blueprintId) {
         var separator = blueprintId.indexOf("_");
         var setNo = parseInt(blueprintId.substr(0, separator));
@@ -559,17 +577,13 @@ class Card {
             return maxDimension;
     }
     
+    // static | animated | none; a browser without the cookie gets the static layer
     static getFoilPresentation() {
-        let foil = loadFromCookie("foilPresentation", "none");
-        //Handling of old cookies. This should be removable late 2025.
-        if(foil === "true") {
-            saveToCookie("foilPresentation", "animated");
-            return "animated"
-        }
-        
-        if(foil === "false") {
-            saveToCookie("foilPresentation", "static");
-            return "static"
+        let foil = loadFromCookie("foilPresentation", "static");
+        if (foil !== "static" && foil !== "animated" && foil !== "none") {
+            // pre-2025 cookies stored true/false
+            foil = (foil === "true") ? "animated" : "static";
+            saveToCookie("foilPresentation", foil);
         }
         return foil;
     }

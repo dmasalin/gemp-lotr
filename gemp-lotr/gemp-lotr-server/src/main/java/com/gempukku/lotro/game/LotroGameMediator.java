@@ -595,6 +595,8 @@ public class LotroGameMediator {
                 if (_decisionQuerySentTimes.containsKey(playerClockName))
                     secondsLeft.put("decisionClock", getCurrentUserPendingTime(playerClockName));
             }
+            // the decision time limit, so the client can show "elapsed / limit" and warn before a decision times out
+            secondsLeft.put("decisionLimit", _timeSettings.maxSecondsPerDecision());
             visitor.visitClock(secondsLeft);
         } finally {
             _readLock.unlock();
@@ -629,6 +631,7 @@ public class LotroGameMediator {
                 if (_decisionQuerySentTimes.containsKey(playerId))
                     secondsLeft.put("decisionClock", getCurrentUserPendingTime(playerId));
             }
+            secondsLeft.put("decisionLimit", _timeSettings.maxSecondsPerDecision());
 
             visitor.visitClock(secondsLeft);
         } finally {
