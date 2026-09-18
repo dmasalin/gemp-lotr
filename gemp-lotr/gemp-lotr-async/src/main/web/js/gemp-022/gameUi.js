@@ -978,10 +978,11 @@ var GempLotrGameUI = Class.extend({
         var alertHeight = 180;
 
         // The chat box shares the vertical band of the bottom player's hand (spectators have no hand: fixed height)
+        var minChatBoxHeight = 170;
         var chatHeight = 200;
         if (!this.spectatorMode) {
             var handTop = padding * 6 + yScales[5] * heightPerScale;
-            chatHeight = height - padding - handTop;
+            chatHeight = Math.max(minChatBoxHeight + padding, height - padding - handTop);
         }
 
         var assignmentsCount = this.assignGroupDivs.length + ((this.skirmishGroupDiv != null) ? 1 : 0);
