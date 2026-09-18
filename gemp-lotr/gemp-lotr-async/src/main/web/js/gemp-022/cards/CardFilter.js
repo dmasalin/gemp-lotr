@@ -171,12 +171,12 @@ var CardFilter = Class.extend({
 		
 		this.blockLabel = $("<label for='blockSelect' class='filterLabel'>Block:</label>");
 		this.blockSelect = $("<select id='blockSelect' class='filterInput'>"
-			+ "<option value='0-33,50-200' selected='selected'>Any</option>"
+			+ "<option value='0-33,50-200,404' selected='selected'>Any</option>"
 			+ "</select>");
 		
 		this.setLabel = $("<label for='setSelect' class='filterLabel'>Set:</label>");
 		this.setSelect = $("<select id='setSelect' class='filterInput'>"
-			+ "<option value='0-34,50-200' selected='selected'>Any</option>"
+			+ "<option value='0-34,50-200,404' selected='selected'>Any</option>"
 			+ "</select>");
 
 		this.cardTypeLabel = $("<label for='cardTypeSelect' class='filterLabel'>Card&nbsp;Type:</label>");
