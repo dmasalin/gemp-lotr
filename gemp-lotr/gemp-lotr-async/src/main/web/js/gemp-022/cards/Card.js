@@ -85,7 +85,6 @@ class Card {
             cached = {
                 imageUrl:Card.getImageUrl(blueprintid),
                 backSideImageUrl:Card.getBackSideUrl(blueprintid),
-                incomplete:Card.isIncomplete(blueprintid),
                 errata:Card.isErrata(blueprintid)
             };
             
@@ -104,7 +103,6 @@ class Card {
             cached = {
                 imageUrl:Card.getImageUrl(tengwarid, true),
                 backSideImageUrl:Card.getBackSideUrl(tengwarid),
-                incomplete:Card.isIncomplete(tengwarid),
                 errata:Card.isErrata(tengwarid)
             };
             
@@ -252,17 +250,14 @@ class Card {
             var cardFromCache = Card.CardCache[this.bareBlueprint];
             this.imageUrl = cardFromCache.imageUrl;
             this.backSideImageUrl = cardFromCache.backSideImageUrl;
-            this.incomplete = cardFromCache.incomplete;
         } else {
             this.imageUrl = Card.getImageUrl(this.bareBlueprint);
             this.backSideImageUrl = Card.getBackSideUrl(this.bareBlueprint);
-            this.incomplete = Card.isIncomplete(this.bareBlueprint);
 
             if (this.bareBlueprint != "-1_1" && this.bareBlueprint != "-1_2") {
                 Card.CardCache[this.bareBlueprint] = {
                     imageUrl:this.imageUrl,
-                    backSideImageUrl:this.backSideImageUrl,
-                    incomplete:this.incomplete
+                    backSideImageUrl:this.backSideImageUrl
                 };
             }
         }
@@ -275,6 +270,18 @@ class Card {
 
     isPack() {
         return packBlueprints[this.blueprintId] != null;
+    }
+
+    // Set 404 "Future Prize" placeholders: shown in collections like a card, but never playable or addable to a deck.
+    static isPlaceholder(blueprintId) {
+        if (blueprintId == null)
+            return false;
+        var separator = blueprintId.indexOf("_");
+        return separator > 0 && parseInt(blueprintId.substr(0, separator)) == 404;
+    }
+
+    isPlaceholder() {
+        return Card.isPlaceholder(this.blueprintId);
     }
     
     isTengwar() {
@@ -381,18 +388,6 @@ class Card {
         return Card.isBlueprintHorizontal(blueprintId);
     }
 
-    static isIncomplete(blueprintId) {
-        var separator = blueprintId.indexOf("_");
-        var setNo = parseInt(blueprintId.substr(0, separator));
-        var cardNo = parseInt(blueprintId.substr(separator + 1));
-        
-        if (setNo >= 400 && setNo < 600) {
-            return true;
-        }
-
-        return false;
-    }
-    
     static isErrata(blueprintId) {
         var separator = blueprintId.indexOf("_");
         var setNo = parseInt(blueprintId.substr(0, separator));
@@ -412,6 +407,10 @@ class Card {
         var separator = blueprintId.indexOf("_");
         var setNo = parseInt(blueprintId.substr(0, separator));
         var cardNo = parseInt(blueprintId.substr(separator + 1));
+
+        // Set 404 holds the "Future Prize" placeholders handed out for promised prizes: one image for all of them.
+        if (setNo == 404)
+            return "images/future_prize.jpg";
 
         var errata = this.getErrata(setNo, cardNo);
         if (errata != null && (ignoreErrata === undefined || !ignoreErrata))

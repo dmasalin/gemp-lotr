@@ -100,13 +100,17 @@ public class SortAndFilterCards {
             var card = cardBPCache.get(blueprintId);
             boolean valid = true;
 
-            if(!formats.isEmpty() && !isInSetOrFormat(blueprintId, card, formats, currentFormat, cardLibrary, formatLibrary, siteOverride))
+            // Future-prize placeholders (set 404) belong to no format, block or set, but a player must always be
+            // able to see the ones they hold, so those three filters do not apply to them (everything else does).
+            boolean placeholder = LotroCardBlueprintLibrary.isPlaceholderId(strippedId);
+
+            if(!placeholder && !formats.isEmpty() && !isInSetOrFormat(blueprintId, card, formats, currentFormat, cardLibrary, formatLibrary, siteOverride))
                 continue;
 
-            if(!blocks.isEmpty() && !isInSetOrFormat(blueprintId, card, blocks, currentFormat, cardLibrary, formatLibrary, siteOverride))
+            if(!placeholder && !blocks.isEmpty() && !isInSetOrFormat(blueprintId, card, blocks, currentFormat, cardLibrary, formatLibrary, siteOverride))
                 continue;
 
-            if(!sets.isEmpty() && !isInSetOrFormat(blueprintId, card, sets, currentFormat, cardLibrary, formatLibrary, siteOverride))
+            if(!placeholder && !sets.isEmpty() && !isInSetOrFormat(blueprintId, card, sets, currentFormat, cardLibrary, formatLibrary, siteOverride))
                 continue;
 
             if(!isFlagAccepted(canStartWithRing, card.canStartWithRing()))
