@@ -898,8 +898,16 @@ $(document).ready(
 				});
 
 				if (available.length > 0) {
-					var topN = Math.min(3, available.length);
-					var pick = available[Math.floor(Math.random() * topN)];
+					// Take every card in the nearest intensity bucket (all cards tied at the
+					// minimum distance) and pick uniformly, so each card in that bucket has the
+					// same chance. Bucket-to-bucket variety comes from the jitter above.
+					// (The old "top 3 of the sorted list" was deterministic within a bucket:
+					// stable sort + fixed server order meant the same 3 cards always won ties.)
+					var minDist = Math.abs(available[0].intensity - adjustedTarget);
+					var candidates = available.filter(function(m) {
+						return Math.abs(m.intensity - adjustedTarget) === minDist;
+					});
+					var pick = candidates[Math.floor(Math.random() * candidates.length)];
 					rtmdPath[i] = pick;
 					usedIds.add(pick.blueprintId);
 				} else {

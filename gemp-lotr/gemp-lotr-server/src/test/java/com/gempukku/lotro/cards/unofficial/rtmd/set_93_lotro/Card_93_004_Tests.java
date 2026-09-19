@@ -10,21 +10,12 @@ import java.util.HashMap;
 
 import static org.junit.Assert.*;
 
-/**
- * 93_4: Wound one of your characters after each skirmish in which you did not play a skirmish event.
- *
- * Test cards:
- * - Aragorn (1_89): Gondor companion (potential wound target)
- * - Goblin Runner (1_178): Moria Orc minion
- * - Strength of Spirit (1_85): Gondor skirmish event
- */
 public class Card_93_004_Tests
 {
 	private final HashMap<String, String> cards = new HashMap<>() {{
-		put("aragorn", "1_89");
-		put("runner", "1_178");
-		// Swordarm of the White Tower: skirmish event
-		put("event", "1_116");
+		put("aragorn", "1_89"); // Aragorn: Gondor companion (potential wound target)
+		put("runner", "1_178"); // Goblin Runner: Moria Orc minion
+		put("event", "1_116"); // Swordarm of the White Tower: skirmish event
 	}};
 
 	protected VirtualTableScenario GetFreepsScenario() throws CardNotFoundException, DecisionResultInvalidException {
@@ -47,6 +38,13 @@ public class Card_93_004_Tests
 
 	@Test
 	public void StatsAreCorrect() throws DecisionResultInvalidException, CardNotFoundException {
+		/**
+		 * Set: RTMD 93
+		 * Name: Race Text 93_4
+		 * Type: MetaSite
+		 * Game Text: Wound one of your characters after each skirmish in which you did not play a
+		 * skirmish event.
+		 */
 		var scn = GetFreepsScenario();
 		var card = scn.GetFreepsCard("mod");
 		assertEquals("Race Text 93_4", card.getBlueprint().getTitle());
