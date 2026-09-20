@@ -56,6 +56,199 @@
 		}
 	}
 
+	94_2: {
+		cardInfo: {
+			//id: 94_2.0
+			parent: 94_2
+			variant: ORIGINAL
+			variantPath: decipher/rtmd
+			revision: 0
+			image: RTMD/LOTR-EN94S02.0_card.jpg
+			collInfo: 94_2
+			rarity: _
+		}
+		title: Race Text 94_2
+		type: MetaSite
+		intensity: -3
+		effects: {
+			type: Modifier
+			modifier: {
+				type: DeadPileGoesToDiscard
+				filter: your,character,not(ringBearer)
+			}
+		}
+		gametext: Each time your character is placed in the dead pile (except the Ring-bearer), discard it.
+		lore: ""
+		promotext: ""
+		helptext: ""
+		alts: {
+			promos: {
+			}
+			errata: {
+			}
+		}
+	}
+
+	94_3: {
+		cardInfo: {
+			//id: 94_3.0
+			parent: 94_3
+			variant: ORIGINAL
+			variantPath: decipher/rtmd
+			revision: 0
+			image: RTMD/LOTR-EN94S03.0_card.jpg
+			collInfo: 94_3
+			rarity: _
+		}
+		title: Race Text 94_3
+		type: MetaSite
+		intensity: -3
+		effects: {
+			type: Modifier
+			modifier: {
+				type: MayIncludeOtherCardTypesInStartingFellowship
+				player: owner
+			}
+		}
+		gametext: You may include items, conditions, allies, and followers in your starting fellowship. You cannot play more than 1 card with 0 twilight cost of each card type this way.
+		lore: ""
+		promotext: ""
+		helptext: ""
+		alts: {
+			promos: {
+			}
+			errata: {
+			}
+		}
+	}
+
+	94_4: {
+		cardInfo: {
+			//id: 94_4.0
+			parent: 94_4
+			variant: ORIGINAL
+			variantPath: decipher/rtmd
+			revision: 0
+			image: RTMD/LOTR-EN94S04.0_card.jpg
+			collInfo: 94_4
+			rarity: _
+		}
+		title: Race Text 94_4
+		type: MetaSite
+		intensity: -2
+		effects: {
+			type: Trigger
+			optional: true
+			trigger: {
+				type: AboutToBeKilled
+				filter: your,companion
+				memorize: dyingCompanion
+			}
+			requires: {
+				type: IsOwner
+			}
+			effect: {
+				type: DoWhile
+				check: {
+					type: CanSpot
+					filter: possession,attachedTo(memory(dyingCompanion))
+				}
+				effect: [
+					{
+						type: Transfer
+						select: choose(possession,attachedTo(memory(dyingCompanion)))
+						where: choose(character,not(memory(dyingCompanion)))
+						checkTarget: true
+					}
+				]
+			}
+		}
+		gametext: Each time your companion is killed, you may transfer each possession attached to that companion to another eligible bearer.
+		lore: ""
+		promotext: ""
+		helptext: ""
+		alts: {
+			promos: {
+			}
+			errata: {
+			}
+		}
+	}
+
+	94_5: {
+		cardInfo: {
+			//id: 94_5.0
+			parent: 94_5
+			variant: ORIGINAL
+			variantPath: decipher/rtmd
+			revision: 0
+			image: RTMD/LOTR-EN94S05.0_card.jpg
+			collInfo: 94_5
+			rarity: _
+		}
+		title: Race Text 94_5
+		type: MetaSite
+		intensity: -2
+		effects: {
+			type: Modifier
+			modifier: {
+				type: CantMove
+				requires: [
+					{
+						type: OwnerIsShadow
+					}
+					{
+						type: Phase
+						phase: regroup
+					}
+					{
+						type: Location
+						filter: regionNumber(3)
+					}
+					{
+						// "your opponent" - OwnerIsShadow above already restricts this to the turns
+						// on which the owner is the Shadow player, so this turn's Free Peoples
+						// player is the opponent.
+						type: Or
+						requires: [
+							{
+								// The Dark Lord.
+								type: PlayerIs
+								player: freeps
+								names: [
+									bign19
+								]
+							}
+							{
+								// A World Champion.
+								type: PlayerIs
+								player: freeps
+								names: [
+									basmelis
+								]
+							}
+							{
+								type: PlayerLeaguePlacement
+								player: freeps
+								percentage: 10
+							}
+						]
+					}
+				]
+			}
+		}
+		gametext: If your opponent is the Dark Lord or a World Champion, or if they are placed in the top 10% of the current league, they cannot choose to move during the regroup phase in region 3.
+		lore: ""
+		promotext: ""
+		helptext: ""
+		alts: {
+			promos: {
+			}
+			errata: {
+			}
+		}
+	}
+
 	94_6: {
 		cardInfo: {
 			//id: 94_6.0
@@ -79,6 +272,38 @@
 			}
 		}
 		gametext: Site 8 is a sanctuary.
+		lore: ""
+		promotext: ""
+		helptext: ""
+		alts: {
+			promos: {
+			}
+			errata: {
+			}
+		}
+	}
+
+	94_7: {
+		cardInfo: {
+			//id: 94_7.0
+			parent: 94_7
+			variant: ORIGINAL
+			variantPath: decipher/rtmd
+			revision: 0
+			image: RTMD/LOTR-EN94S07.0_card.jpg
+			collInfo: 94_7
+			rarity: _
+		}
+		title: Race Text 94_7
+		type: MetaSite
+		intensity: -1
+		effects: {
+			type: Modifier
+			modifier: {
+				type: SanctuaryMayRemoveBurdens
+			}
+		}
+		gametext: You may remove burdens instead of wounds during Sanctuary healing.
 		lore: ""
 		promotext: ""
 		helptext: ""
@@ -461,83 +686,83 @@
 		}
 	}
 
-	94_15: {
-		cardInfo: {
-			//id: 94_15.0
-			parent: 94_15
-			variant: ORIGINAL
-			variantPath: decipher/rtmd
-			revision: 0
-			image: RTMD/LOTR-EN94S15.0_card.jpg
-			collInfo: 94_15
-			rarity: _
-		}
-		title: Race Text 94_15
-		type: MetaSite
-		intensity: 1
-		effects: [
-			{
-				type: Trigger
-				optional: true
-				player: owner
-				text: "add a burden instead of the wound"
-				trigger: {
-					type: AboutToTakeWound
-					filter: ringBearer
-				}
-				requires: [
-					{
-						type: RingIsOn
-					}
-					{
-						type: RingIsActive
-					}
-					{
-						type: not
-						requires: {
-							type: Phase
-							phase: skirmish
-						}
-					}
-				]
-				effect: [
-					{
-						type: NegateWound
-						select: all(ringBearer)
-					}
-					{
-						type: AddBurdens
-					}
-				]
-			}
-			{
-				type: Trigger
-				optional: true
-				player: owner
-				text: "put on The One Ring"
-				trigger: {
-					type: AboutToTakeWound
-					filter: ringBearer
-				}
-				requires: {
-					type: RingIsActive
-				}
-				effect: {
-					type: PutOnRing
-				}
-			}
-		]
-		gametext: While wearing The One Ring, each time the Ring-bearer is about to take a wound (except during a skirmish), its owner may add a burden instead. Response: If the Ring-bearer is about to take a wound, its owner may put on The One Ring until the regroup phase.
-		lore: ""
-		promotext: ""
-		helptext: ""
-		alts: {
-			promos: {
-			}
-			errata: {
-			}
-		}
-	}
+	# 94_15: {
+	# 	cardInfo: {
+	# 		//id: 94_15.0
+	# 		parent: 94_15
+	# 		variant: ORIGINAL
+	# 		variantPath: decipher/rtmd
+	# 		revision: 0
+	# 		image: RTMD/LOTR-EN94S15.0_card.jpg
+	# 		collInfo: 94_15
+	# 		rarity: _
+	# 	}
+	# 	title: Race Text 94_15
+	# 	type: MetaSite
+	# 	intensity: 1
+	# 	effects: [
+	# 		{
+	# 			type: Trigger
+	# 			optional: true
+	# 			player: owner
+	# 			text: "add a burden instead of the wound"
+	# 			trigger: {
+	# 				type: AboutToTakeWound
+	# 				filter: ringBearer
+	# 			}
+	# 			requires: [
+	# 				{
+	# 					type: RingIsOn
+	# 				}
+	# 				{
+	# 					type: RingIsActive
+	# 				}
+	# 				{
+	# 					type: not
+	# 					requires: {
+	# 						type: Phase
+	# 						phase: skirmish
+	# 					}
+	# 				}
+	# 			]
+	# 			effect: [
+	# 				{
+	# 					type: NegateWound
+	# 					select: all(ringBearer)
+	# 				}
+	# 				{
+	# 					type: AddBurdens
+	# 				}
+	# 			]
+	# 		}
+	# 		{
+	# 			type: Trigger
+	# 			optional: true
+	# 			player: owner
+	# 			text: "put on The One Ring"
+	# 			trigger: {
+	# 				type: AboutToTakeWound
+	# 				filter: ringBearer
+	# 			}
+	# 			requires: {
+	# 				type: RingIsActive
+	# 			}
+	# 			effect: {
+	# 				type: PutOnRing
+	# 			}
+	# 		}
+	# 	]
+	# 	gametext: While wearing The One Ring, each time the Ring-bearer is about to take a wound (except during a skirmish), its owner may add a burden instead. Response: If the Ring-bearer is about to take a wound, its owner may put on The One Ring until the regroup phase.
+	# 	lore: ""
+	# 	promotext: ""
+	# 	helptext: ""
+	# 	alts: {
+	# 		promos: {
+	# 		}
+	# 		errata: {
+	# 		}
+	# 	}
+	# }
 
 	94_16: {
 		cardInfo: {
@@ -559,6 +784,7 @@
 				type: OverrideUniqueness
 				filter: minion
 				uniqueness: 4
+				loosen: true
 			}
 		}
 		gametext: Minions are not unique.
@@ -729,6 +955,72 @@
 			}
 		}
 		gametext: Your Ring-bearer may not be exerted by Free Peoples cards.
+		lore: ""
+		promotext: ""
+		helptext: ""
+		alts: {
+			promos: {
+			}
+			errata: {
+			}
+		}
+	}
+
+	94_21: {
+		cardInfo: {
+			//id: 94_21.0
+			parent: 94_21
+			variant: ORIGINAL
+			variantPath: decipher/rtmd
+			revision: 0
+			image: RTMD/LOTR-EN94S21.0_card.jpg
+			collInfo: 94_21
+			rarity: _
+		}
+		title: Race Text 94_21
+		type: MetaSite
+		intensity: 3
+		effects: {
+			type: Modifier
+			modifier: {
+				type: OverrideUniqueness
+				filter: your,side(freeps),condition
+				uniqueness: 1
+			}
+		}
+		gametext: Your Free Peoples conditions are unique.
+		lore: ""
+		promotext: ""
+		helptext: ""
+		alts: {
+			promos: {
+			}
+			errata: {
+			}
+		}
+	}
+
+	94_22: {
+		cardInfo: {
+			//id: 94_22.0
+			parent: 94_22
+			variant: ORIGINAL
+			variantPath: decipher/rtmd
+			revision: 0
+			image: RTMD/LOTR-EN94S22.0_card.jpg
+			collInfo: 94_22
+			rarity: _
+		}
+		title: Race Text 94_22
+		type: MetaSite
+		intensity: 3
+		effects: [
+			{
+				type: DeckBuildingOverride
+				minimumDeckSize: 100
+			}
+		]
+		gametext: Your deck must have at least 100 cards.
 		lore: ""
 		promotext: ""
 		helptext: ""
@@ -922,6 +1214,73 @@
 		}
 	}
 
+	94_27: {
+		cardInfo: {
+			//id: 94_27.0
+			parent: 94_27
+			variant: ORIGINAL
+			variantPath: decipher/rtmd
+			revision: 0
+			image: RTMD/LOTR-EN94S27.0_card.jpg
+			collInfo: 94_27
+			rarity: _
+		}
+		title: Race Text 94_27
+		type: MetaSite
+		intensity: 4
+		effects: {
+			type: Modifier
+			modifier: {
+				type: OverrideUniqueness
+				filter: your
+				uniqueness: 1
+			}
+		}
+		gametext: Each of your cards is unique.
+		lore: ""
+		promotext: ""
+		helptext: ""
+		alts: {
+			promos: {
+			}
+			errata: {
+			}
+		}
+	}
+
+	94_28: {
+		cardInfo: {
+			//id: 94_28.0
+			parent: 94_28
+			variant: ORIGINAL
+			variantPath: decipher/rtmd
+			revision: 0
+			image: RTMD/LOTR-EN94S28.0_card.jpg
+			collInfo: 94_28
+			rarity: _
+		}
+		title: Race Text 94_28
+		type: MetaSite
+		intensity: 5
+		effects: {
+			type: Modifier
+			modifier: {
+				type: OpponentFiltersYourDraws
+				player: owner
+			}
+		}
+		gametext: Each time you are about to draw a card (except when reconciling), instead your opponent looks at the 2 top cards from your draw deck, chooses 1 for you to take into hand, and the other is placed beneath your draw deck.
+		lore: ""
+		promotext: ""
+		helptext: ""
+		alts: {
+			promos: {
+			}
+			errata: {
+			}
+		}
+	}
+
 	94_29: {
 		cardInfo: {
 			//id: 94_29.0
@@ -945,6 +1304,81 @@
 			}
 		}
 		gametext: Your opponent's minions are fierce.
+		lore: ""
+		promotext: ""
+		helptext: ""
+		alts: {
+			promos: {
+			}
+			errata: {
+			}
+		}
+	}
+
+	94_30: {
+		cardInfo: {
+			//id: 94_30.0
+			parent: 94_30
+			variant: ORIGINAL
+			variantPath: decipher/rtmd
+			revision: 0
+			image: RTMD/LOTR-EN94S30.0_card.jpg
+			collInfo: 94_30
+			rarity: _
+		}
+		title: Race Text 94_30
+		type: MetaSite
+		intensity: 5
+		effects: [
+			{
+				type: Modifier
+				modifier: {
+					type: CantPlayCardsFromDeckOrDiscardPile
+					player: owner
+				}
+			}
+			{
+				type: Modifier
+				modifier: {
+					type: CantTakeCardsIntoHandFromDeckOrDiscardPile
+					player: owner
+				}
+			}
+		]
+		gametext: You may not play or take into hand cards from your discard pile or draw deck (except when reconciling).
+		lore: ""
+		promotext: ""
+		helptext: ""
+		alts: {
+			promos: {
+			}
+			errata: {
+			}
+		}
+	}
+
+	94_31: {
+		cardInfo: {
+			//id: 94_31.0
+			parent: 94_31
+			variant: ORIGINAL
+			variantPath: decipher/rtmd
+			revision: 0
+			image: RTMD/LOTR-EN94S31.0_card.jpg
+			collInfo: 94_31
+			rarity: _
+		}
+		title: Race Text 94_31
+		type: MetaSite
+		intensity: 6
+		effects: {
+			type: Modifier
+			modifier: {
+				type: MustSurviveSite10
+				player: owner
+			}
+		}
+		gametext: Your fellowship cannot win the game until surviving site 10. When moving from site 9, the Shadow player chooses any site 9 from outside the game to play as the next site and adds (4).
 		lore: ""
 		promotext: ""
 		helptext: ""

@@ -28,6 +28,15 @@ public class Card_94_015_Tests {
 		);
 	}
 
+	protected VirtualTableScenario GetBaneScenario() throws CardNotFoundException, DecisionResultInvalidException {
+		return new VirtualTableScenario(cards,
+				VirtualTableScenario.FellowshipSites,
+				VirtualTableScenario.FOTRFrodo,
+				VirtualTableScenario.IsildursBaneRing,
+				"94_15", null
+		);
+	}
+
 	protected VirtualTableScenario GetShadowScenario() throws CardNotFoundException, DecisionResultInvalidException {
 		return new VirtualTableScenario(cards,
 				VirtualTableScenario.FellowshipSites,
@@ -159,7 +168,7 @@ public class Card_94_015_Tests {
 
 	@Test
 	public void NoConversionDuringASkirmishEvenWhileWearingTheRing() throws DecisionResultInvalidException, CardNotFoundException {
-		var scn = GetFreepsScenario();
+		var scn = GetBaneScenario();
 		var mod = scn.GetFreepsCard("mod");
 		var marksman = scn.GetShadowCard("marksman");
 		var commander = scn.GetShadowCard("commander");
@@ -188,11 +197,11 @@ public class Card_94_015_Tests {
 		while (scn.FreepsHasOptionalTriggerAvailable())
 			scn.FreepsDeclineOptionalTrigger();
 
-		// The skirmish wound was still converted to a burden - but by the default test ring's own
-		// mandatory, skirmish-only conversion (Ruling Ring, 1_2), not by our card: Frodo's wound
-		// count is unchanged from before the skirmish, and a burden was added independently of ours.
+		// The skirmish wound was still converted to a burden - but by Isildur's Bane own
+		// mandatory, skirmish-only conversion, not by our card: Frodo's wound
+		// count is unchanged from before the skirmish, and 2 burdenx were added independently of ours.
 		assertEquals(1, scn.GetWoundsOn(frodo));
-		assertEquals(burdens + 1, scn.GetBurdens());
+		assertEquals(burdens + 2, scn.GetBurdens());
 	}
 
 	@Test

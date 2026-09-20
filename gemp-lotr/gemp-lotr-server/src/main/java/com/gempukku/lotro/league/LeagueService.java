@@ -346,6 +346,7 @@ public class LeagueService {
 
         var standings = getLeagueStandings(league);
         var playerMetaSites = new HashMap<String, List<RTMDGameInfo.MetaSitePair>>();
+        var playerPlacements = new HashMap<String, RTMDGameInfo.LeaguePlacement>();
 
         for (String playerName : playerNames) {
             int position = rtmd.getPlayerPosition(playerName, standings);
@@ -358,9 +359,13 @@ public class LeagueService {
                 pairs.add(new RTMDGameInfo.MetaSitePair(visualId, modifiers.get(i)));
             }
             playerMetaSites.put(playerName, pairs);
+
+            var placement = RTMDTitles.placementOf(playerName, standings);
+            if (placement != null)
+                playerPlacements.put(playerName, placement);
         }
 
-        return new RTMDGameInfo(playerMetaSites);
+        return new RTMDGameInfo(playerMetaSites, playerPlacements);
     }
 
     /**

@@ -475,7 +475,7 @@ public class DefaultLotroFormat implements LotroFormat {
         }
 
         // Deck
-        valid = validateDeckStructure(deck);
+        valid = validateDeckStructure(deck, context);
         if(valid != null && !valid.isEmpty()) {
             result.add(valid);
         }
@@ -625,10 +625,11 @@ public class DefaultLotroFormat implements LotroFormat {
                 .toList();
     }
 
-    private String validateDeckStructure(LotroDeck deck) {
+    private String validateDeckStructure(LotroDeck deck, DeckValidationContext context) {
         String result = "";
-        if (deck.getDrawDeckCards().size() < _minimumDeckSize) {
-            result += "Deck contains below minimum number of cards: " + deck.getDrawDeckCards().size() + "<" + _minimumDeckSize + ".\n";
+        int effectiveMinimumDeckSize = context != null ? context.getMinimumDeckSize(_minimumDeckSize) : _minimumDeckSize;
+        if (deck.getDrawDeckCards().size() < effectiveMinimumDeckSize) {
+            result += "Deck contains below minimum number of cards: " + deck.getDrawDeckCards().size() + "<" + effectiveMinimumDeckSize + ".\n";
         }
         if (_validateShadowFPCount) {
             int shadow = 0;

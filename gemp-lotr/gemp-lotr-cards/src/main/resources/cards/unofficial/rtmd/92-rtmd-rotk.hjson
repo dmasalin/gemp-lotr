@@ -959,6 +959,7 @@
 				type: OverrideUniqueness
 				filter: your,nazgul
 				uniqueness: 4
+				loosen: true
 				requires: {
 					type: OwnerIsShadow
 				}
