@@ -142,6 +142,8 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
             runLeagueSchedule(request, responseWriter);
         } else if (uri.equals("/rtmdModifiers") && request.method() == HttpMethod.GET) {
             getRTMDModifiers(request, responseWriter);
+        } else if (uri.equals("/rtmdRandomPath") && request.method() == HttpMethod.GET) {
+            getRTMDRandomPath(request, responseWriter);
         } else if (uri.equals("/prizes") && request.method() == HttpMethod.GET) {
             getPrizes(request, responseWriter);
         } else if (uri.equals("/prizeHolders") && request.method() == HttpMethod.GET) {
@@ -989,6 +991,8 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
         String raceIntensityCeilingStr = getFormParameterSafely(postDecoder, "raceIntensityCeiling");
         String raceAdvancementModeStr = getFormParameterSafely(postDecoder, "raceAdvancementMode");
         String raceAdvanceFactorStr = getFormParameterSafely(postDecoder, "raceAdvanceFactor");
+        String racePathLengthStr = getFormParameterSafely(postDecoder, "racePathLength");
+        String raceRandomizeStr = getFormParameterSafely(postDecoder, "raceRandomizeEachInstance");
 
         params.racePath = racePath == null ? new ArrayList<>() : new ArrayList<>(racePath);
         params.raceVisualPath = raceVisualPath == null ? new ArrayList<>() : new ArrayList<>(raceVisualPath);
@@ -1009,6 +1013,10 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
         }
         if (raceAdvanceFactorStr != null && !raceAdvanceFactorStr.isBlank())
             params.raceAdvanceFactor = Throw400IfNullOrNonInteger("raceAdvanceFactor", raceAdvanceFactorStr);
+        if (racePathLengthStr != null && !racePathLengthStr.isBlank())
+            params.racePathLength = Throw400IfNullOrNonInteger("racePathLength", racePathLengthStr);
+        // only a schedule template ever sets this; a hand-made league keeps the path the admin rolled
+        params.raceRandomizeEachInstance = raceRandomizeStr != null && raceRandomizeStr.equalsIgnoreCase("true");
 
         return params;
     }
@@ -1337,9 +1345,9 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
         var modifiers = new ArrayList<Map<String, Object>>();
         var visualCards = new ArrayList<Map<String, Object>>();
 
-        // Visual cards: set 90. Modifiers: sets 91-94 (94 reserved for future modifiers)
-        var visualSets = Set.of(90);
-        var modifierSets = Set.of(91, 92, 93, 94);
+        // Visual cards: set 90. Modifiers: sets 91-94.  The server-side randomiser reads the same sets.
+        var visualSets = RTMDPathGenerator.VISUAL_SETS;
+        var modifierSets = RTMDPathGenerator.MODIFIER_SETS;
 
         // Iterate all loaded blueprints rather than rarity files (which may not exist for these sets)
         for (var mapEntry : _cardLibrary.getBaseCards().entrySet()) {
@@ -1372,6 +1380,44 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
         result.put("modifiers", modifiers);
         result.put("visualCards", visualCards);
 
+        responseWriter.writeJsonResponse(JsonUtils.Serialize(result));
+    }
+
+    /**
+     * GET /rtmdRandomPath?pathLength=&amp;floor=&amp;ceiling=&amp;locked=id,,id,, : one freshly rolled race path,
+     * from the same {@link RTMDPathGenerator} that scheduled leagues use, so the admin page's Randomize button and
+     * the scheduler cannot drift apart.
+     * <p>
+     * {@code locked} is optional and positional: one comma-separated entry per slot, a blueprint ID to keep that
+     * slot as it is or an empty entry to re-roll it.
+     * Returns {@code {racePath: [...], raceVisualPath: [...]}}, the two lists parallel and the same length.
+     */
+    private void getRTMDRandomPath(HttpRequest request, ResponseWriter responseWriter) throws Exception {
+        validateEventAdmin(request);
+
+        var queryDecoder = new QueryStringDecoder(request.uri());
+        String pathLengthStr = getQueryParameterSafely(queryDecoder, "pathLength");
+        String floorStr = getQueryParameterSafely(queryDecoder, "floor");
+        String ceilingStr = getQueryParameterSafely(queryDecoder, "ceiling");
+        String lockedStr = getQueryParameterSafely(queryDecoder, "locked");
+
+        int pathLength = (pathLengthStr == null || pathLengthStr.isBlank())
+                ? RTMDPathGenerator.DEFAULT_PATH_LENGTH : Throw400IfNullOrNonInteger("pathLength", pathLengthStr);
+        int floor = (floorStr == null || floorStr.isBlank()) ? -10 : Throw400IfNullOrNonInteger("floor", floorStr);
+        int ceiling = (ceilingStr == null || ceilingStr.isBlank()) ? 10 : Throw400IfNullOrNonInteger("ceiling", ceilingStr);
+        if (floor > ceiling)
+            throw new HttpProcessingException(400, "Intensity floor must be less than or equal to the ceiling.");
+
+        List<String> locked = null;
+        if (lockedStr != null && !lockedStr.isBlank())
+            locked = Arrays.asList(lockedStr.split(",", -1));
+
+        var path = RTMDPathGenerator.generate(RTMDPathGenerator.loadPool(_cardLibrary), pathLength, floor, ceiling,
+                locked, new Random());
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("racePath", path.racePath());
+        result.put("raceVisualPath", path.raceVisualPath());
         responseWriter.writeJsonResponse(JsonUtils.Serialize(result));
     }
 

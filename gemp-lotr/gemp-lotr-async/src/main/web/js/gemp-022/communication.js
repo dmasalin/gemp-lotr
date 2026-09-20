@@ -1513,6 +1513,27 @@ var GempLotrCommunication = Class.extend({
         });
     },
 
+    // GET /admin/rtmdRandomPath -> {racePath:[...], raceVisualPath:[...]}: one freshly rolled race path from the
+    // same generator scheduled leagues use.  locked is a comma-separated, positional list of blueprint IDs; an
+    // empty entry means "re-roll this slot".
+    getRTMDRandomPath:function (pathLength, floor, ceiling, locked, callback, errorMap) {
+        $.ajax({
+            type:"GET",
+            url:this.url + "/admin/rtmdRandomPath",
+            cache:false,
+            data:{
+                participantId:getUrlParam("participantId"),
+                pathLength:pathLength,
+                floor:floor,
+                ceiling:ceiling,
+                locked:locked
+            },
+            success:callback,
+            error:this.errorCheck(errorMap),
+            dataType:"json"
+        });
+    },
+
     processScheduledTournament:function (preview, name, type, wc, tournamentId, 
                                          formatCode, sealedFormatCode, deckbuildingDuration, turnInDuration,
                                          soloDraftFormatCode, soloDraftDeckbuildingDuration, soloDraftTurnInDuration,

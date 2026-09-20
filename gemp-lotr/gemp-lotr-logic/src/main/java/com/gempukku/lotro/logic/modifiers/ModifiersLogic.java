@@ -1244,6 +1244,15 @@ public class ModifiersLogic implements ModifiersEnvironment, ModifiersQuerying {
     }
 
     @Override
+    public boolean hasFlagActive(LotroGame game, ModifierFlag modifierFlag, String playerId) {
+        for (Modifier modifier : getModifiers(game, ModifierEffect.SPECIAL_FLAG_MODIFIER))
+            if (modifier.hasFlagActive(game, modifierFlag, playerId))
+                return true;
+
+        return false;
+    }
+
+    @Override
     public boolean canReplaceSite(LotroGame game, String playerId, PhysicalCard siteToReplace) {
         for (Modifier modifier : getModifiersAffectingCard(game, ModifierEffect.REPLACE_SITE_MODIFIER, siteToReplace))
             if (!modifier.isSiteReplaceable(game, playerId))
@@ -1306,13 +1315,22 @@ public class ModifiersLogic implements ModifiersEnvironment, ModifiersQuerying {
 
     @Override
     public int getUniqueness(LotroGame game, PhysicalCard card) {
+        // Uniqueness is the number of copies of the card allowed in play at once: 1 is unique, 4 is non-unique.
+        // Loosening overrides raise the blueprint's limit; restricting overrides then cap the result, so that
+        // "is unique" always beats "is not unique" no matter which order the modifiers were added.
         int result = card.getBlueprint().getUniqueRestriction();
+        int restriction = Integer.MAX_VALUE;
         for (Modifier modifier : getModifiersAffectingCard(game, ModifierEffect.UNIQUENESS_MODIFIER, card)) {
             int override = modifier.getOverrideUniqueness(game, card);
             if (override > 0) {
-                result = Math.max(result, override);
+                if (modifier.loosensUniqueness(game, card))
+                    result = Math.max(result, override);
+                else
+                    restriction = Math.min(restriction, override);
             }
         }
+        if (restriction != Integer.MAX_VALUE)
+            result = Math.min(result, restriction);
         return result;
     }
 
@@ -1334,6 +1352,22 @@ public class ModifiersLogic implements ModifiersEnvironment, ModifiersQuerying {
         for (Modifier modifier : getModifiersAffectingCard(game, ModifierEffect.POTENTIAL_DISCOUNT_MODIFIER, playedCard)) {
             modifier.appendPotentialDiscounts(game, action, playedCard);
         }
+    }
+
+    @Override
+    public boolean deadPileGoesToDiscard(LotroGame game, PhysicalCard card) {
+        for (Modifier modifier : getModifiersAffectingCard(game, ModifierEffect.DEAD_PILE_MODIFIER, card))
+            if (modifier.deadPileGoesToDiscard(game, card))
+                return true;
+        return false;
+    }
+
+    @Override
+    public boolean sanctuaryMayRemoveBurdens(LotroGame game, String playerId) {
+        for (Modifier modifier : getModifiers(game, ModifierEffect.SANCTUARY_REMOVE_BURDEN_MODIFIER))
+            if (modifier.sanctuaryMayRemoveBurdens(game, playerId))
+                return true;
+        return false;
     }
 
     private class ModifierHookImpl implements ModifierHook {

@@ -12,7 +12,7 @@
 		}
 		title: Race Text 93_1
 		type: MetaSite
-		intensity: -2
+		intensity: -3
 		effects: {
 			type: Activated
 			phase: skirmish
@@ -135,7 +135,7 @@
 		}
 		title: Race Text 93_4
 		type: MetaSite
-		intensity: 4
+		intensity: 6
 		effects: {
 			type: Trigger
 			optional: false
@@ -184,7 +184,7 @@
 		}
 		title: Race Text 93_5
 		type: MetaSite
-		intensity: 3
+		intensity: 1
 		effects: {
 			type: Modifier
 			modifier: {
@@ -218,7 +218,7 @@
 		}
 		title: Race Text 93_6
 		type: MetaSite
-		intensity: 5
+		intensity: 1
 		effects: {
 			type: Modifier
 			modifier: {
@@ -250,7 +250,7 @@
 		}
 		title: Race Text 93_7
 		type: MetaSite
-		intensity: 4
+		intensity: 3
 		effects: {
 			type: Trigger
 			optional: true
@@ -295,7 +295,7 @@
 		}
 		title: Race Text 93_8
 		type: MetaSite
-		intensity: 3
+		intensity: -1
 		effects: {
 			type: Modifier
 			modifier: {
