@@ -125,6 +125,20 @@ const packBlueprints = {
     "(S)TSSealed-S2": "/gemp-lotr/images/boosters/starter_selection.png",
     "(S)TSSealed-S3": "/gemp-lotr/images/boosters/starter_selection.png",
 
+    "KSSealedS1D1": "/gemp-lotr/images/boosters/KSS1D1.png",
+    "KSSealedS1D2": "/gemp-lotr/images/boosters/KSS1D2.png",
+    "KSSealedS1D3": "/gemp-lotr/images/boosters/KSS1D3.png",
+    "KSSealedS2D1": "/gemp-lotr/images/boosters/KSS2D1.png",
+    "KSSealedS2D2": "/gemp-lotr/images/boosters/KSS2D2.png",
+    "KSSealedS2D3": "/gemp-lotr/images/boosters/KSS2D3.png",
+    "KSSealedS3D1": "/gemp-lotr/images/boosters/KSS3D1.png",
+    "KSSealedS3D2": "/gemp-lotr/images/boosters/KSS3D2.png",
+    "KSSealedS3D3": "/gemp-lotr/images/boosters/KSS3D3.png",
+
+    "(S)KSSealed-S1": "/gemp-lotr/images/boosters/starter_selection.png",
+    "(S)KSSealed-S2": "/gemp-lotr/images/boosters/starter_selection.png",
+    "(S)KSSealed-S3": "/gemp-lotr/images/boosters/starter_selection.png",
+
     "Expanded": "/gemp-lotr/images/boosters/expanded.png",
     "Wraith": "/gemp-lotr/images/boosters/wraith.png",
     "AgesEnd": "/gemp-lotr/images/boosters/ages_end.png",
