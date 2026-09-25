@@ -1414,6 +1414,45 @@ var GempLotrCommunication = Class.extend({
         });
     },
 
+    // ---- Completed event browser (Events tab; one kind, one month of finished events per call) ----
+    // kind is "league" or "tournament"; each Events sub-tab asks only for its own kind.
+    // GET /eventHistory/months?kind= -> {kind, months:["2026-09","2026-08",...]}, descending, only months with a
+    // completed event of that kind
+    getEventHistoryMonths:function (kind, callback, errorMap) {
+        $.ajax({
+            type:"GET",
+            url:this.url + "/eventHistory/months",
+            cache:false,
+            data:{
+                participantId:getUrlParam("participantId"),
+                kind:kind
+            },
+            success:callback,
+            error:this.errorCheck(errorMap),
+            dataType:"json"
+        });
+    },
+
+    // GET /eventHistory?month=YYYY-MM&kind= -> {month, kind, isAdmin, events:[{id, name, startDate, endDate, format,
+    // playerCount, rounds, adminLinks:[{label, text, url}]}]}.  isAdmin is decided by the server and is the only thing
+    // the client may gate admin links on; adminLinks is present only when it is true.  Details are fetched with
+    // getLeague(id) / getTournament(id).
+    getEventHistory:function (month, kind, callback, errorMap) {
+        $.ajax({
+            type:"GET",
+            url:this.url + "/eventHistory",
+            cache:false,
+            data:{
+                participantId:getUrlParam("participantId"),
+                month:month,
+                kind:kind
+            },
+            success:callback,
+            error:this.errorCheck(errorMap),
+            dataType:"json"
+        });
+    },
+
     // ---- Prizes (admin) ----
     // GET /admin/prizes -> {unresolved:[placeholder...], resolved:[placeholder...]} where a placeholder is
     // {id, blueprintId, label, count, eventKind, eventId, eventName, tierIndex, created, createdBy, holders,
@@ -1499,6 +1538,98 @@ var GempLotrCommunication = Class.extend({
         });
     },
 
+    // ---- t4-add-items: the add-items form on the Prizes tab (full admins only) ----
+    // GET /admin/searchPlayers?q=...&limit=... -> {query, players:[name...]}, best match first
+    searchPlayers:function (query, limit, callback, errorMap) {
+        $.ajax({
+            type:"GET",
+            url:this.url + "/admin/searchPlayers",
+            cache:false,
+            data:{
+                participantId:getUrlParam("participantId"),
+                q:query,
+                limit:limit
+            },
+            success:callback,
+            error:this.errorCheck(errorMap),
+            dataType:"json"
+        });
+    },
+
+    // POST /admin/resolvePlayers {players: names separated by newlines/commas/spaces}
+    //   -> {players:[{input, name (null if unknown), suggestions:[...]}]}
+    resolvePlayers:function (players, callback, errorMap) {
+        $.ajax({
+            type:"POST",
+            url:this.url + "/admin/resolvePlayers",
+            cache:false,
+            data:{
+                participantId:getUrlParam("participantId"),
+                players:players
+            },
+            success:callback,
+            error:this.errorCheck(errorMap),
+            dataType:"json"
+        });
+    },
+
+    // GET /admin/searchItems?q=...&limit=... -> {query, items:[{value, kind: card|pack|selection|award, title, subtitle, detail}]}
+    searchItems:function (query, limit, callback, errorMap) {
+        $.ajax({
+            type:"GET",
+            url:this.url + "/admin/searchItems",
+            cache:false,
+            data:{
+                participantId:getUrlParam("participantId"),
+                q:query,
+                limit:limit
+            },
+            success:callback,
+            error:this.errorCheck(errorMap),
+            dataType:"json"
+        });
+    },
+
+    // GET /admin/addItemsCollections -> {collections:[{value, label, kind: permanent|trophy|league, leagueName,
+    //   collectionName, leagueType, start, end, running}]}
+    getAddItemsCollections:function (callback, errorMap) {
+        $.ajax({
+            type:"GET",
+            url:this.url + "/admin/addItemsCollections",
+            cache:false,
+            data:{
+                participantId:getUrlParam("participantId")
+            },
+            success:callback,
+            error:this.errorCheck(errorMap),
+            dataType:"json"
+        });
+    },
+
+    // POST /admin/addItems with detailed=true: checks everything first (400 and nothing awarded on any unknown player,
+    // item or collection), then -> {collectionType, collectionName, reason, items:[{item, kind, name}],
+    //   results:[{player, status: ok|skipped|error, message}], awarded}
+    // product: one "Nx<item>" per line; players: one name per line; reason: optional note recorded on the transfer
+    addItemsDetailed:function (collectionType, product, players, reason, callback, errorMap) {
+        $.ajax({
+            type:"POST",
+            url:this.url + "/admin/addItems",
+            cache:false,
+            data:{
+                participantId:getUrlParam("participantId"),
+                collectionType:collectionType,
+                product:product,
+                players:players,
+                reason:reason,
+                detailed:"true"
+            },
+            success:callback,
+            error:this.errorCheck(errorMap),
+            dataType:"json"
+        });
+    },
+    // ---- end t4-add-items ----
+
     getRTMDModifiers:function (callback, errorMap) {
         $.ajax({
             type:"GET",
@@ -1533,6 +1664,74 @@ var GempLotrCommunication = Class.extend({
             dataType:"json"
         });
     },
+
+    // ---- t3-tournament-admin: unified tournament form ----
+    // GET /admin/tournament?tournamentId= -> {tournamentId, status (scheduled|expired|live|finished), name, type,
+    //   format, formatName, start ("yyyy-MM-ddTHH:mm" UTC), scheduled, editable, editBlocker, signedUp, stage,
+    //   stageName, round, playerCount, params:{...stored TournamentParams}}
+    getTournamentForAdmin:function (tournamentId, callback, errorMap) {
+        $.ajax({
+            type:"GET",
+            url:this.url + "/admin/tournament",
+            cache:false,
+            data:{
+                participantId:getUrlParam("participantId"),
+                tournamentId:tournamentId
+            },
+            success:callback,
+            error:this.errorCheck(errorMap),
+            dataType:"json"
+        });
+    },
+
+    // GET /admin/tournaments -> {tournaments:[{tournamentId, name, type, format, formatName, status, stage, stageName,
+    //   round, start}]}: live, then scheduled (not started), then recently finished
+    getTournamentsForAdmin:function (callback, errorMap) {
+        $.ajax({
+            type:"GET",
+            url:this.url + "/admin/tournaments",
+            cache:false,
+            data:{
+                participantId:getUrlParam("participantId")
+            },
+            success:callback,
+            error:this.errorCheck(errorMap),
+            dataType:"json"
+        });
+    },
+
+    // GET /admin/tournamentPlayers?tournamentId= -> {tournamentId, name, format, formatName, started,
+    //   players:[{name, dropped, hasDeck}]}
+    getTournamentPlayersForAdmin:function (tournamentId, callback, errorMap) {
+        $.ajax({
+            type:"GET",
+            url:this.url + "/admin/tournamentPlayers",
+            cache:false,
+            data:{
+                participantId:getUrlParam("participantId"),
+                tournamentId:tournamentId
+            },
+            success:callback,
+            error:this.errorCheck(errorMap),
+            dataType:"json"
+        });
+    },
+
+    // POST /admin/updateScheduledTournament: data holds exactly the fields processScheduledTournament posts
+    // (preview, name, type, wc, tournamentId, formatCode, sealedFormatCode, ... manualKickoff); tournamentId names
+    // the scheduled tournament to rewrite and is never changed.
+    updateScheduledTournament:function (data, callback, errorMap) {
+        $.ajax({
+            type:"POST",
+            url:this.url + "/admin/updateScheduledTournament",
+            cache:false,
+            data:$.extend({participantId:getUrlParam("participantId")}, data),
+            success:callback,
+            error:this.errorCheck(errorMap),
+            dataType:"json"
+        });
+    },
+    // ---- end t3-tournament-admin ----
 
     processScheduledTournament:function (preview, name, type, wc, tournamentId, 
                                          formatCode, sealedFormatCode, deckbuildingDuration, turnInDuration,

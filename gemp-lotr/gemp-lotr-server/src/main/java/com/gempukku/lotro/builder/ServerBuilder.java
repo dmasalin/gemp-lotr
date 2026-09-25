@@ -5,7 +5,9 @@ import com.gempukku.lotro.chat.MarkdownParser;
 import com.gempukku.lotro.collection.CollectionSerializer;
 import com.gempukku.lotro.collection.CollectionsManager;
 import com.gempukku.lotro.collection.TransferDAO;
+import com.gempukku.lotro.cache.CacheManager;
 import com.gempukku.lotro.db.*;
+import com.gempukku.lotro.events.EventHistoryService;
 import com.gempukku.lotro.draft2.SoloDraftDefinitions;
 import com.gempukku.lotro.draft3.TableDraftDefinitions;
 import com.gempukku.lotro.game.*;
@@ -127,6 +129,17 @@ public class ServerBuilder {
                         extract(objectMap, LeagueScheduleDAO.class),
                         extract(objectMap, LeagueFactory.class),
                         extract(objectMap, LeagueService.class)));
+
+        objectMap.put(EventHistoryService.class,
+                new EventHistoryService(
+                        extract(objectMap, LeagueDAO.class),
+                        extract(objectMap, TournamentDAO.class),
+                        extract(objectMap, ProductLibrary.class),
+                        extract(objectMap, LotroFormatLibrary.class),
+                        extract(objectMap, SoloDraftDefinitions.class)));
+        // The intended extension point: CacheManager is already in the object map by the time services are built,
+        // so the admin panel's "Clear Server Cache" picks this up without AdminRequestHandler naming it.
+        extract(objectMap, CacheManager.class).addCache(extract(objectMap, EventHistoryService.class));
 
         objectMap.put(AdminService.class,
                 new AdminService(

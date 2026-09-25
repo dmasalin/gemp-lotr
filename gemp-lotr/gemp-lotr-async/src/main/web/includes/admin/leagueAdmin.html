@@ -1610,6 +1610,8 @@ $(document).ready(
 				editScheduleById(scheduleId);
 			},
 			onTournament: function (id, event) {
+				// t3-tournament-admin: Tournament Admin opens this tournament in its form when its tab loads
+				window.tournamentAdminPendingOpen = id;
 				$("#adminMain").tabs("option", "active", $("#admin-tabs li").index($("#tournamentTab").parent()));
 			}
 		});

@@ -10,7 +10,18 @@ public class JSONDefs {
 
         public String name;
         public PackType type;
+        /**
+         * When true, the children this product emits are themselves opened rather than deposited.
+         * This describes what happens to this product's <i>contents</i>, not to the product itself.
+         */
         public boolean recursive = false;
+        /**
+         * When true, awarding this product to a player deposits its (recursively opened) contents
+         * instead of the product itself.  Intended for art-less "random X" products which should
+         * never sit visibly in a collection.  Ignored for SELECTION products, which need a player
+         * to choose and therefore cannot be opened at award time.
+         */
+        public boolean openOnDelivery = false;
         public List<String> items;
         public Map<String, String> data;
     }

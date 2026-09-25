@@ -1376,3 +1376,332 @@ form#queueSpawnerForm input {
 	width: 100%;
 	box-sizing: border-box;
 }
+
+/* ---- Completed event browser (Events tab, below each live list; one kind per panel) ---- */
+.event-history {
+	margin: 0.5em 0 1em 0;
+}
+
+.event-history-heading {
+	font-weight: bold;
+	color: #bbb;
+}
+
+/* The header reuses .calendar-header / .calendar-title so it matches the calendar's navigation; the title is also
+   the button that opens the month dropdown. */
+.event-history-title-wrap {
+	position: relative;
+	display: inline-block;
+}
+
+.event-history-month-title {
+	display: inline-block;
+	cursor: pointer;
+	border-radius: 4px;
+	padding: 0.1em 0.4em;
+	user-select: none;
+}
+
+.event-history-month-title:hover, .event-history-month-title:focus, .event-history-month-title.open {
+	background: #333;
+	outline: none;
+}
+
+.event-history-month-title:focus-visible {
+	outline: 1px dotted #aaa;
+}
+
+.event-history-caret {
+	font-size: 70%;
+	margin-left: 0.4em;
+	vertical-align: middle;
+	color: #aaa;
+}
+
+.event-history-dropdown {
+	position: absolute;
+	top: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 50;
+	min-width: 16em;
+	max-height: 20em;
+	overflow-y: auto;
+	margin-top: 0.2em;
+	padding: 0.4em;
+	background: #222;
+	border: 1px solid #666;
+	border-radius: 4px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+	text-align: left;
+}
+
+.event-history-dd-status {
+	padding: 0.3em;
+}
+
+.event-history-dd-year + .event-history-dd-year {
+	border-top: 1px solid #444;
+	margin-top: 0.3em;
+	padding-top: 0.3em;
+}
+
+.event-history-dd-year-label {
+	font-weight: bold;
+	color: #aaa;
+	margin-bottom: 0.2em;
+}
+
+.event-history-dd-months {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 0.2em;
+}
+
+.event-history-dd-month {
+	background: transparent;
+	color: inherit;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	padding: 0.2em 0.4em;
+	cursor: pointer;
+	font: inherit;
+	text-align: left;
+}
+
+.event-history-dd-month:hover, .event-history-dd-month:focus {
+	background: #3a3a3a;
+	border-color: #666;
+	outline: none;
+}
+
+.event-history-dd-month.selected {
+	border-color: #aaa;
+	font-weight: bold;
+}
+
+.event-history-status {
+	margin: 0.3em 0 0.5em 0;
+}
+
+.event-history-hint, .event-history-empty {
+	font-style: italic;
+	color: #bbb;
+}
+
+.event-history-loading {
+	font-style: italic;
+	color: #d8d8a0;
+}
+
+.event-history-error {
+	color: #f0a0a0;
+	font-weight: bold;
+}
+
+.event-history-loaded {
+	color: #bbb;
+}
+
+table.event-history-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.event-history-table th, .event-history-table td {
+	text-align: left;
+	padding: 0.25em 0.6em 0.25em 0;
+	vertical-align: middle;
+	border-bottom: 1px solid #444;
+}
+
+.event-history-table th {
+	color: #aaa;
+	font-weight: normal;
+	white-space: nowrap;
+}
+
+.event-history-name {
+	font-weight: bold;
+}
+
+.event-history-dates {
+	white-space: nowrap;
+}
+
+.event-history-number {
+	text-align: right;
+	white-space: nowrap;
+}
+
+.event-history-detail-cell {
+	white-space: nowrap;
+}
+
+.event-history-row.expanded > td {
+	border-bottom-color: transparent;
+	background: #2a2a2a;
+}
+
+/* The expansion row holds the same content the live displays render (league tabs, standings tables).  The cell itself
+   is flush and unstyled; the slide wrapper is what animates open and shut (its height is driven from JS), and the
+   pane inside it is inset on both sides so the page background shows either side of it and it reads as a drawer
+   hanging from the (full-width) event row above. */
+.event-history-table > tbody > tr.event-history-detail-row > td {
+	padding: 0;
+	background: transparent;
+	border-bottom: 1px solid #444;
+}
+
+.event-history-detail-slide {
+	overflow: hidden;   /* also keeps the pane's bottom margin inside the measured height */
+}
+
+.event-history-detail {
+	margin: 0 1.2em 0.6em 1.2em;
+	padding: 0.5em 0.8em 0.8em 0.8em;
+	background: #2a2a2a;
+	border: 1px solid #3a3a3a;
+	border-top: none;
+	border-radius: 0 0 4px 4px;
+}
+
+.event-history-detail table.standings {
+	padding-bottom: 0.5em;
+}
+
+.event-history-admin-item {
+	display: inline-block;
+	margin-right: 0.6em;
+	white-space: nowrap;
+}
+
+.event-history-admin-link {
+	font-family: monospace;
+}
+
+/* The league code has no URL: it is text an admin selects and pastes, so make a click grab all of it. */
+.event-history-admin-text {
+	font-family: monospace;
+	background: #2a2a2a;
+	border: 1px solid #555;
+	border-radius: 3px;
+	padding: 0 0.3em;
+	cursor: text;
+	user-select: all;
+}
+
+.event-history-admin-none {
+	color: #777;
+}
+
+
+/* ==== t12-drawers ==== */
+/* Current Leagues / Current Tournaments rows and the calendar preview (eventDrawer.js): each event is a header row
+   ([button] title ...... date) and its details hang beneath it in the same inset drawer the completed-events browser
+   uses (.event-history-detail).  The header takes a subtle background while its drawer is open, a touch lighter than
+   the drawer's #2a2a2a, so it reads as the drawer's handle. */
+.event-list {
+	margin: 0.4em 0;
+}
+
+.event-row {
+	margin: 0 0 0.3em 0;
+}
+
+.event-row-header {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.3em 0.7em;
+	padding: 0.3em 0.5em;
+	border-bottom: 1px solid #3a3a3a;
+	border-radius: 4px 4px 0 0;
+	transition: background-color 0.15s ease;
+}
+
+.event-row-header.expanded {
+	background: #353535;
+	border-bottom-color: #444;
+}
+
+.event-row-button {
+	flex: none;
+	font-size: 80%;
+}
+
+/* same size as the old list's .leagueName / .tournamentName */
+.event-row-title {
+	font-size: 200%;
+	font-weight: bolder;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.event-row-extras {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.6em;
+}
+
+/* league code (click selects it) / tournament report link, admins only */
+.event-row-code {
+	font-family: monospace;
+	color: #bbb;
+}
+
+.event-row-select {
+	cursor: text;
+	user-select: all;
+}
+
+.event-row-date {
+	margin-left: auto;
+	white-space: nowrap;
+	color: #ccc;
+}
+
+.event-drawer-slide {
+	overflow: hidden;   /* also keeps the pane's bottom margin inside the measured height */
+}
+
+.event-drawer {
+	margin: 0 1.2em 0.6em 1.2em;
+	padding: 0.5em 0.8em 0.8em 0.8em;
+	background: #2a2a2a;
+	border: 1px solid #3a3a3a;
+	border-top: none;
+	border-radius: 0 0 4px 4px;
+}
+
+.event-drawer table.standings {
+	padding-bottom: 0.5em;
+}
+
+.event-drawer-loading {
+	font-style: italic;
+	color: #d8d8a0;
+}
+
+.event-drawer-error {
+	color: #f0a0a0;
+	font-weight: bold;
+}
+
+/* the calendar preview: the same row, its drawer always open, with a little room above it.  overflow-anchor: none
+   keeps the browser's scroll anchoring from latching onto a node inside the preview while it is being replaced
+   (EventCalendarUI.ScrollKeeper holds the scroll position instead). */
+.calendar-preview {
+	margin-top: 0.8em;
+	overflow-anchor: none;
+}
+
+.calendar-scroll-spacer {
+	overflow-anchor: none;
+	pointer-events: none;
+}
+
+.calendar-preview .event-row-go {
+	font-size: 80%;
+}
+/* ==== end t12-drawers ==== */

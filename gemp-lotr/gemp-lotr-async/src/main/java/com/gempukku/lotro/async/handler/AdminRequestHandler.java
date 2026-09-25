@@ -30,6 +30,7 @@ import com.gempukku.lotro.prizes.PrizeDefinitionException;
 import com.gempukku.lotro.prizes.PrizeItem;
 import com.gempukku.lotro.prizes.PrizeService;
 import com.gempukku.lotro.prizes.PrizeTier;
+import com.gempukku.lotro.service.AdminLookupService;
 import com.gempukku.lotro.service.AdminService;
 import com.gempukku.lotro.tournament.*;
 import com.gempukku.util.JsonUtils;
@@ -74,6 +75,8 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
     private final LeagueScheduleService _leagueScheduleService;
     private final MarkdownParser _markdownParser;
     private final PrizeService _prizeService;
+    // t4-add-items: card / product / player lookups for the add-items form
+    private final AdminLookupService _lookupService;
 
     private static final Logger _log = LogManager.getLogger(AdminRequestHandler.class);
 
@@ -98,6 +101,7 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
         _leagueScheduleService = extractObject(context, LeagueScheduleService.class);
         _markdownParser = extractObject(context, MarkdownParser.class);
         _prizeService = extractObject(context, PrizeService.class);
+        _lookupService = new AdminLookupService(_cardLibrary, _productLibrary, _playerDAO);
     }
 
     @Override
@@ -155,7 +159,7 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
         } else if (uri.equals("/cardName") && request.method() == HttpMethod.GET) {
             getCardName(request, responseWriter);
         } else if (uri.equals("/processScheduledTournament") && request.method() == HttpMethod.POST) {
-            processScheduledTournament(request, responseWriter);
+            processScheduledTournament(request, responseWriter, false);
         } else if (uri.equals("/setTournamentStage") && request.method() == HttpMethod.POST) {
             setTournamentStage(request, responseWriter);
         } else if (uri.equals("/addTables") && request.method() == HttpMethod.POST) {
@@ -170,6 +174,16 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
             addItems(request, responseWriter);
         } else if (uri.equals("/addItemsToCollection") && request.method() == HttpMethod.POST) {
             addItemsToCollection(request, responseWriter);
+        // ---- t4-add-items: lookups for the add-items form on the Prizes tab ----
+        } else if (uri.equals("/searchPlayers") && request.method() == HttpMethod.GET) {
+            searchPlayers(request, responseWriter);
+        } else if (uri.equals("/resolvePlayers") && request.method() == HttpMethod.POST) {
+            resolvePlayers(request, responseWriter);
+        } else if (uri.equals("/searchItems") && request.method() == HttpMethod.GET) {
+            searchItems(request, responseWriter);
+        } else if (uri.equals("/addItemsCollections") && request.method() == HttpMethod.GET) {
+            getAddItemsCollections(request, responseWriter);
+        // ---- end t4-add-items ----
         } else if (uri.equals("/banUser") && request.method() == HttpMethod.POST) {
             banUser(request, responseWriter);
         } else if (uri.equals("/resetUserPassword") && request.method() == HttpMethod.POST) {
@@ -184,6 +198,16 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
             findMultipleAccounts(request, responseWriter);
         } else if (uri.equals("/toggleSealedHallStatus") && request.method() == HttpMethod.POST) {
             toggleSealedHallStatus(request, responseWriter);
+        // ---- t3-tournament-admin: unified tournament form ----
+        } else if (uri.equals("/tournament") && request.method() == HttpMethod.GET) {
+            getTournamentForAdmin(request, responseWriter);
+        } else if (uri.equals("/tournaments") && request.method() == HttpMethod.GET) {
+            getTournamentsForAdmin(request, responseWriter);
+        } else if (uri.equals("/tournamentPlayers") && request.method() == HttpMethod.GET) {
+            getTournamentPlayersForAdmin(request, responseWriter);
+        } else if (uri.equals("/updateScheduledTournament") && request.method() == HttpMethod.POST) {
+            processScheduledTournament(request, responseWriter, true);
+        // ---- end t3-tournament-admin ----
         } else {
             throw new HttpProcessingException(404);
         }
@@ -424,6 +448,12 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
             String product = getFormParameterSafely(postDecoder, "product");
             String collectionType = getFormParameterSafely(postDecoder, "collectionType");
 
+            // t4-add-items: the Prizes tab form asks for everything to be checked first and for a per-player report
+            if ("true".equals(getFormParameterSafely(postDecoder, "detailed"))) {
+                addItemsDetailed(players, product, collectionType, getFormParameterSafely(postDecoder, "reason"), responseWriter);
+                return;
+            }
+
             var productItems = CardCollection.Item.createItems(product);
 
             List<String> playerNames = getPlayerNames(players);
@@ -457,6 +487,245 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
 
         return _leagueService.getCollectionTypeByCode(collectionType);
     }
+
+    // ---- t4-add-items ----------------------------------------------------------------------------------------------
+
+    private static final String ADD_ITEMS_DEFAULT_REASON = "Administrator action";
+
+    /**
+     * POST /addItems with detailed=true: the same award as plain /addItems, but everything is checked before
+     * anything is handed out (unknown players, items or collection -> 400 and nothing awarded), the collection must be
+     * permanent, trophy or an active sealed/draft league's collection, an optional reason is recorded on the
+     * transfer, and the answer is JSON:
+     * {collectionType, collectionName, reason, items:[{item, kind, name}], results:[{player, status: ok|skipped|error, message}], awarded}
+     */
+    private void addItemsDetailed(String players, String product, String collectionCode, String reason,
+                                  ResponseWriter responseWriter) throws HttpProcessingException {
+        Throw400IfStringNull("collectionType", collectionCode);
+        Throw400IfStringNull("product", product);
+        Throw400IfStringNull("players", players);
+
+        collectionCode = collectionCode.trim();
+        CollectionType collectionType = null;
+        boolean leagueCollection = false;
+        if (collectionCode.equals(CollectionType.MY_CARDS.getCode()))
+            collectionType = CollectionType.MY_CARDS;
+        else if (collectionCode.equals(CollectionType.TROPHY.getCode()))
+            collectionType = CollectionType.TROPHY;
+        else if (CollectionType.parseCollectionCode(collectionCode) == null) {
+            collectionType = _leagueService.getCollectionTypeByCode(collectionCode);
+            leagueCollection = collectionType != null;
+        }
+        if (collectionType == null)
+            throw new HttpProcessingException(400, "Items can only be added to My cards, Trophies or the collection of an active sealed or draft league; '"
+                    + collectionCode + "' is none of those.");
+
+        // items: every line must parse and name a real card / product
+        var itemDescriptions = new ArrayList<Map<String, Object>>();
+        var productItems = new ArrayList<CardCollection.Item>();
+        var problems = new ArrayList<String>();
+        for (String line : product.split("\n")) {
+            if (line.isBlank())
+                continue;
+            var check = _lookupService.checkItemLine(line);
+            if (check.problem() != null) {
+                problems.add(check.problem());
+                continue;
+            }
+            productItems.add(CardCollection.Item.createItem(check.line()));
+            var d = new LinkedHashMap<String, Object>();
+            d.put("item", check.line());
+            d.put("kind", check.kind().label);
+            d.put("name", check.name());
+            itemDescriptions.add(d);
+        }
+        if (!problems.isEmpty())
+            throw new HttpProcessingException(400, String.join(" ", problems) + " Nothing was awarded.");
+        if (productItems.isEmpty())
+            throw new HttpProcessingException(400, "No items to award.");
+
+        // players: every name must be a real player
+        var recipients = new ArrayList<Player>();
+        var unknown = new ArrayList<String>();
+        var seen = new HashSet<String>();
+        for (String name : getPlayerNames(players)) {
+            Player player = _playerDAO.getPlayer(name);
+            if (player == null)
+                unknown.add(name);
+            else if (seen.add(player.getName()))
+                recipients.add(player);
+        }
+        if (!unknown.isEmpty())
+            throw new HttpProcessingException(400, "Unknown player" + (unknown.size() == 1 ? "" : "s") + ": "
+                    + String.join(", ", unknown) + ". Nothing was awarded.");
+        if (recipients.isEmpty())
+            throw new HttpProcessingException(400, "No players to award.");
+
+        String transferReason = (reason == null || reason.isBlank()) ? ADD_ITEMS_DEFAULT_REASON : reason.trim();
+        if (transferReason.length() > 255)
+            throw new HttpProcessingException(400, "The reason must be 255 characters or less.");
+
+        var results = new ArrayList<Map<String, Object>>();
+        int awarded = 0;
+        for (Player player : recipients) {
+            var r = new LinkedHashMap<String, Object>();
+            r.put("player", player.getName());
+            try {
+                // a league collection only exists once the player has joined; addItemsToPlayerCollection would
+                // silently do nothing, so say so instead
+                if (leagueCollection && _collectionManager.getPlayerCollection(player, collectionType.getCode()) == null) {
+                    r.put("status", "skipped");
+                    r.put("message", "has not joined that league, so has no such collection");
+                } else {
+                    _collectionManager.addItemsToPlayerCollection(true, transferReason, player, collectionType, productItems);
+                    r.put("status", "ok");
+                    r.put("message", null);
+                    awarded++;
+                }
+            } catch (RuntimeException exp) {
+                _log.error("Unable to add items to " + player.getName() + "'s " + collectionType.getCode() + " collection", exp);
+                r.put("status", "error");
+                r.put("message", "server error: " + exp.getMessage());
+            }
+            results.add(r);
+        }
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("collectionType", collectionType.getCode());
+        result.put("collectionName", collectionType.getFullName());
+        result.put("reason", transferReason);
+        result.put("items", itemDescriptions);
+        result.put("results", results);
+        result.put("awarded", awarded);
+        responseWriter.writeJsonResponse(JsonUtils.SerializeWithNulls(result));
+    }
+
+    private int parseLimit(String value) {
+        if (value == null || value.isBlank())
+            return AdminLookupService.DEFAULT_LIMIT;
+        try {
+            return AdminLookupService.clampLimit(Integer.parseInt(value.trim()));
+        } catch (NumberFormatException exp) {
+            return AdminLookupService.DEFAULT_LIMIT;
+        }
+    }
+
+    /**
+     * GET /searchPlayers?q=...&limit=... : {players:[name...]}, names containing q (ignoring case), best first.
+     */
+    private void searchPlayers(HttpRequest request, ResponseWriter responseWriter) throws Exception {
+        validateAdmin(request);
+
+        var queryDecoder = new QueryStringDecoder(request.uri());
+        String query = getQueryParameterSafely(queryDecoder, "q");
+        int limit = parseLimit(getQueryParameterSafely(queryDecoder, "limit"));
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("query", query == null ? "" : query);
+        result.put("players", _lookupService.searchPlayers(query, limit));
+        responseWriter.writeJsonResponse(JsonUtils.Serialize(result));
+    }
+
+    /**
+     * POST /resolvePlayers {players: names separated by newlines, commas, semicolons or spaces} :
+     * {players:[{input, name (null when unknown), suggestions:[...]}]}
+     */
+    private void resolvePlayers(HttpRequest request, ResponseWriter responseWriter) throws Exception {
+        validateAdmin(request);
+
+        var postDecoder = new HttpPostRequestDecoder(request);
+        try {
+            String players = getFormParameterSafely(postDecoder, "players");
+            var list = new ArrayList<Map<String, Object>>();
+            for (var resolution : _lookupService.resolvePlayers(AdminLookupService.splitPlayerList(players))) {
+                var p = new LinkedHashMap<String, Object>();
+                p.put("input", resolution.input());
+                p.put("name", resolution.name());
+                p.put("suggestions", resolution.suggestions());
+                list.add(p);
+            }
+            var result = new LinkedHashMap<String, Object>();
+            result.put("players", list);
+            responseWriter.writeJsonResponse(JsonUtils.SerializeWithNulls(result));
+        } finally {
+            postDecoder.destroy();
+        }
+    }
+
+    /**
+     * GET /searchItems?q=...&limit=... : {items:[{value, kind: card|pack|selection|award, title, subtitle, detail}]},
+     * cards (by title, accents ignored, or by blueprint id) and products (by name), best first.  value is what goes
+     * after the "Nx" in the addItems product list.
+     */
+    private void searchItems(HttpRequest request, ResponseWriter responseWriter) throws Exception {
+        validateAdmin(request);
+
+        var queryDecoder = new QueryStringDecoder(request.uri());
+        String query = getQueryParameterSafely(queryDecoder, "q");
+        int limit = parseLimit(getQueryParameterSafely(queryDecoder, "limit"));
+
+        var items = new ArrayList<Map<String, Object>>();
+        for (var entry : _lookupService.searchItems(query, limit)) {
+            var i = new LinkedHashMap<String, Object>();
+            i.put("value", entry.value());
+            i.put("kind", entry.kind().label);
+            i.put("title", entry.title());
+            i.put("subtitle", entry.subtitle());
+            i.put("detail", entry.detail());
+            items.add(i);
+        }
+        var result = new LinkedHashMap<String, Object>();
+        result.put("query", query == null ? "" : query);
+        result.put("items", items);
+        responseWriter.writeJsonResponse(JsonUtils.SerializeWithNulls(result));
+    }
+
+    /**
+     * GET /addItemsCollections : {collections:[{value, label, kind: permanent|trophy|league, leagueName, leagueType,
+     * start, end, running}]}: My cards, Trophies, then the collection of every active sealed / draft league.
+     */
+    private void getAddItemsCollections(HttpRequest request, ResponseWriter responseWriter) throws Exception {
+        validateAdmin(request);
+
+        var collections = new ArrayList<Map<String, Object>>();
+        collections.add(describeFixedCollection(CollectionType.MY_CARDS, "Permanent (My cards)", "permanent"));
+        collections.add(describeFixedCollection(CollectionType.TROPHY, "Trophy", "trophy"));
+
+        var now = DateUtils.Now();
+        for (var lc : _leagueService.getActiveLeagueCollections()) {
+            var c = new LinkedHashMap<String, Object>();
+            c.put("value", lc.code());
+            c.put("label", lc.leagueName());
+            c.put("kind", "league");
+            c.put("leagueName", lc.leagueName());
+            c.put("collectionName", lc.collectionName());
+            c.put("leagueType", lc.type() == null ? null : lc.type().toString());
+            c.put("start", lc.start() == null ? null : lc.start().toLocalDate().toString());
+            c.put("end", lc.end() == null ? null : lc.end().toLocalDate().toString());
+            c.put("running", lc.start() == null || !lc.start().isAfter(now));
+            collections.add(c);
+        }
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("collections", collections);
+        responseWriter.writeJsonResponse(JsonUtils.SerializeWithNulls(result));
+    }
+
+    private static Map<String, Object> describeFixedCollection(CollectionType type, String label, String kind) {
+        var c = new LinkedHashMap<String, Object>();
+        c.put("value", type.getCode());
+        c.put("label", label);
+        c.put("kind", kind);
+        c.put("leagueName", null);
+        c.put("collectionName", type.getFullName());
+        c.put("leagueType", null);
+        c.put("start", null);
+        c.put("end", null);
+        c.put("running", true);
+        return c;
+    }
+
+    // ---- end t4-add-items ------------------------------------------------------------------------------------------
 
     private void addTables(HttpRequest request, ResponseWriter responseWriter) throws Exception {
         validateEventAdmin(request);
@@ -1421,7 +1690,14 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
         responseWriter.writeJsonResponse(JsonUtils.Serialize(result));
     }
 
-    private void processScheduledTournament(HttpRequest request, ResponseWriter responseWriter) throws Exception {
+    /**
+     * POST /admin/processScheduledTournament (update false) creates a scheduled tournament; POST
+     * /admin/updateScheduledTournament (update true) takes the same parameters and rewrites the scheduled tournament
+     * {@code tournamentId} in place (it must exist, must not have started and must have nobody signed up; the id is
+     * never changed, so the World Championship prefix is not applied again).  With preview=true neither saves
+     * anything and the JSON preview is returned instead.
+     */
+    private void processScheduledTournament(HttpRequest request, ResponseWriter responseWriter, boolean update) throws Exception {
         validateEventAdmin(request);
 
         var postDecoder = new HttpPostRequestDecoder(request);
@@ -1494,12 +1770,19 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
         int minPlayers = Throw400IfNullOrNonInteger("minPlayers", minPlayersStr);
         boolean manualKickoff = ParseBoolean("manualKickoff", manualKickoffStr, false);
 
-        if (wc) {
-            tournamentId = DateUtils.Now().getYear() + "-wc-" + tournamentId;
-        }
+        if (update) {
+            // t3-tournament-admin: an edit keeps its id (already prefixed if it was created as a WC event)
+            String blocker = _tournamentService.getScheduledTournamentEditBlocker(tournamentId);
+            if (blocker != null)
+                throw new HttpProcessingException(400, blocker);
+        } else {
+            if (wc) {
+                tournamentId = DateUtils.Now().getYear() + "-wc-" + tournamentId;
+            }
 
-        Throw400IfValidationFails("tournamentId", tournamentId, _tournamentService.getTournamentById(tournamentId) == null, "Tournament with that Id already exists.");
-        Throw400IfValidationFails("tournamentId", tournamentId, _tournamentService.getScheduledTournamentById(tournamentId) == null, "Scheduled Tournament with that Id already exists.");
+            Throw400IfValidationFails("tournamentId", tournamentId, _tournamentService.getTournamentById(tournamentId) == null, "Tournament with that Id already exists.");
+            Throw400IfValidationFails("tournamentId", tournamentId, _tournamentService.getScheduledTournamentById(tournamentId) == null, "Scheduled Tournament with that Id already exists.");
+        }
 
         var params = new TournamentParams();
 
@@ -1607,7 +1890,15 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
         }
 
         if(!preview) {
-            _tournamentService.addScheduledTournament(info);
+            if (update) {
+                try {
+                    _tournamentService.updateScheduledTournament(info, DateUtils.Now());
+                } catch (IllegalStateException exp) {
+                    throw new HttpProcessingException(400, exp.getMessage());
+                }
+            } else {
+                _tournamentService.addScheduledTournament(info);
+            }
             // promises become placeholders now, so they can be resolved before the tournament even runs
             _prizeService.registerPromises(new PrizeService.EventRef(PrizeService.KIND_TOURNAMENT, params.tournamentId,
                     params.name, null), params.prizeTiers);
@@ -1622,6 +1913,178 @@ public class AdminRequestHandler extends LotroServerRequestHandler implements Ur
         previewMap.put("prizeTiers", describePrizeTiers(params.prizeTiers));
         responseWriter.writeJsonResponse(JsonUtils.Serialize(previewMap));
     }
+
+    // ------------------------------------------------------------------------------------------------
+    // t3-tournament-admin: the unified tournament form (calendar click -> load, deck-source list, player list)
+    // ------------------------------------------------------------------------------------------------
+
+    /** The deck-source list reaches this far back for finished tournaments... */
+    private static final int ADMIN_TOURNAMENT_FINISHED_DAYS = 60;
+    /** ...and this far ahead for scheduled ones. */
+    private static final int ADMIN_TOURNAMENT_SCHEDULED_DAYS = 366;
+
+    private String formatNameOrCode(String formatCode) {
+        return formatCode == null ? null : com.gempukku.lotro.game.formats.FormatNames.nameOrCode(_formatLibrary, formatCode);
+    }
+
+    /** The stored parameters, or null when they cannot be read (the form then shows what it can without them). */
+    private static TournamentParams parseParamsOrNull(String type, String parameters) {
+        try {
+            return Tournament.parseInfo(type, parameters);
+        } catch (RuntimeException exp) {
+            _log.warn("Unreadable tournament parameters: " + exp.getMessage());
+            return null;
+        }
+    }
+
+    private static String stageName(Tournament.Stage stage) {
+        return stage == null ? null : stage.getHumanReadable();
+    }
+
+    /**
+     * GET /admin/tournament?tournamentId=... - one tournament, queue or scheduled tournament for the unified form:
+     * {tournamentId, status: scheduled|expired|live|finished, name, type, format, formatName,
+     *  start ("yyyy-MM-ddTHH:mm", UTC), scheduled (has a scheduled-tournament row), editable, editBlocker,
+     *  signedUp (players waiting in its queue), stage (enum name), stageName, round, playerCount,
+     *  params: {the stored TournamentParams, type-specific fields and prizeTiers included}}.
+     * Fields that do not apply are null.  404 when nothing has that id.
+     */
+    private void getTournamentForAdmin(HttpRequest request, ResponseWriter responseWriter) throws Exception {
+        validateEventAdmin(request);
+        var queryDecoder = new QueryStringDecoder(request.uri());
+        String tournamentId = getQueryParameterSafely(queryDecoder, "tournamentId");
+        Throw400IfStringNull("tournamentId", tournamentId);
+
+        var view = _tournamentService.getAdminTournamentView(tournamentId.trim(), DateUtils.Now());
+        if (view == null)
+            throw new HttpProcessingException(404, "There is no tournament '" + tournamentId + "'.");
+
+        TournamentParams params = null;
+        String type = null;
+        java.time.LocalDateTime start = null;
+        String name = null;
+        if (view.record() != null) {
+            type = view.record().type;
+            params = parseParamsOrNull(type, view.record().parameters);
+            start = view.record().start_date;
+            name = view.record().name;
+        } else if (view.scheduled() != null) {
+            type = view.scheduled().type;
+            params = parseParamsOrNull(type, view.scheduled().parameters);
+            start = view.scheduled().start_date;
+            name = view.scheduled().name;
+        } else if (view.queue() != null && view.queue().getInfo() != null) {
+            params = view.queue().getInfo().Parameters();
+            type = params.type == null ? null : params.type.name();
+            start = params.startTime;
+            name = view.queue().getTournamentQueueName();
+        }
+
+        Tournament.Stage stage = null;
+        Integer round = null;
+        if (view.live() != null) {
+            stage = view.live().getTournamentStage();
+            round = view.live().getCurrentRound();
+        } else if (view.record() != null) {
+            stage = view.record().stage == null ? null : Tournament.Stage.parseStage(view.record().stage);
+            round = view.record().round;
+        }
+        boolean started = view.record() != null || view.live() != null;
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("tournamentId", view.tournamentId());
+        result.put("status", view.status());
+        result.put("name", name);
+        result.put("type", type);
+        String format = params == null ? null : params.format;
+        result.put("format", format);
+        result.put("formatName", formatNameOrCode(format));
+        result.put("start", start == null ? null : start.format(DateUtils.APIDateTimeFormat));
+        result.put("scheduled", view.scheduled() != null);
+        result.put("editable", view.editBlocker() == null);
+        result.put("editBlocker", view.editBlocker());
+        result.put("signedUp", view.queue() == null ? null : view.signedUp());
+        result.put("stage", stage == null ? null : stage.name());
+        result.put("stageName", stageName(stage));
+        result.put("round", round);
+        result.put("playerCount", started ? _tournamentService.retrieveTournamentPlayers(view.tournamentId()).size() : null);
+        result.put("params", params == null ? null : com.alibaba.fastjson2.JSON.parseObject(JsonUtils.Serialize(params)));
+        responseWriter.writeJsonResponse(JsonUtils.SerializeWithNulls(result));
+    }
+
+    /**
+     * GET /admin/tournaments - {tournaments: [{tournamentId, name, type, format, formatName, status, stage, stageName,
+     * round, start}]}: live tournaments (newest first), scheduled ones that have not started (soonest first), then
+     * those finished in the last {@value #ADMIN_TOURNAMENT_FINISHED_DAYS} days (newest first).
+     */
+    private void getTournamentsForAdmin(HttpRequest request, ResponseWriter responseWriter) throws Exception {
+        validateEventAdmin(request);
+        var list = new ArrayList<Map<String, Object>>();
+        for (var summary : _tournamentService.getAdminTournamentList(DateUtils.Now(),
+                ADMIN_TOURNAMENT_FINISHED_DAYS, ADMIN_TOURNAMENT_SCHEDULED_DAYS)) {
+            var obj = new LinkedHashMap<String, Object>();
+            obj.put("tournamentId", summary.tournamentId());
+            obj.put("name", summary.name());
+            obj.put("type", summary.type());
+            obj.put("format", summary.format());
+            obj.put("formatName", formatNameOrCode(summary.format()));
+            obj.put("status", summary.status());
+            obj.put("stage", summary.stage());
+            obj.put("stageName", summary.stage() == null ? null : stageName(Tournament.Stage.parseStage(summary.stage())));
+            obj.put("round", summary.round());
+            obj.put("start", summary.start() == null ? null : summary.start().format(DateUtils.APIDateTimeFormat));
+            list.add(obj);
+        }
+        var result = new LinkedHashMap<String, Object>();
+        result.put("tournaments", list);
+        responseWriter.writeJsonResponse(JsonUtils.SerializeWithNulls(result));
+    }
+
+    /**
+     * GET /admin/tournamentPlayers?tournamentId=... - the players recorded in a started tournament, for the manual
+     * table form: {tournamentId, name, format, formatName, started, players: [{name, dropped, hasDeck}]}.  A
+     * tournament that has not started yet has no recorded players (started false, players empty).  404 when
+     * nothing has that id.
+     */
+    private void getTournamentPlayersForAdmin(HttpRequest request, ResponseWriter responseWriter) throws Exception {
+        validateEventAdmin(request);
+        var queryDecoder = new QueryStringDecoder(request.uri());
+        String tournamentId = getQueryParameterSafely(queryDecoder, "tournamentId");
+        Throw400IfStringNull("tournamentId", tournamentId);
+        tournamentId = tournamentId.trim();
+
+        var view = _tournamentService.getAdminTournamentView(tournamentId, DateUtils.Now());
+        if (view == null)
+            throw new HttpProcessingException(404, "There is no tournament '" + tournamentId + "'.");
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("tournamentId", tournamentId);
+        var players = new ArrayList<Map<String, Object>>();
+        if (view.record() != null) {
+            TournamentParams params = parseParamsOrNull(view.record().type, view.record().parameters);
+            String format = params == null ? null : params.format;
+            result.put("name", view.record().name);
+            result.put("format", format);
+            result.put("formatName", formatNameOrCode(format));
+            result.put("started", true);
+            for (var player : _tournamentService.getAdminTournamentPlayers(tournamentId, formatNameOrCode(format))) {
+                var obj = new LinkedHashMap<String, Object>();
+                obj.put("name", player.name());
+                obj.put("dropped", player.dropped());
+                obj.put("hasDeck", player.hasDeck());
+                players.add(obj);
+            }
+        } else {
+            result.put("name", view.scheduled() != null ? view.scheduled().name : null);
+            result.put("format", view.scheduled() != null ? view.scheduled().format : null);
+            result.put("formatName", formatNameOrCode(view.scheduled() != null ? view.scheduled().format : null));
+            result.put("started", false);
+        }
+        result.put("players", players);
+        responseWriter.writeJsonResponse(JsonUtils.SerializeWithNulls(result));
+    }
+
+    // ---- end t3-tournament-admin ----
 
     private void getMotd(HttpRequest request, ResponseWriter responseWriter) throws HttpProcessingException, IOException {
         validateAdmin(request);
