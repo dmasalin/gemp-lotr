@@ -44,8 +44,6 @@
 			1x1_27
 			#2x 1C8 Dwarven Armor
 			2x1_8
-			#1x 1C9 Dwarven Axe
-			1x1_9
 			#2x 2U3 Dwarven Bracers
 			2x2_3
 			#1x 7U8 Gimli's Armor
@@ -62,6 +60,8 @@
 			2x7_11
 			#2x 2U4 Endurance of Dwarves
 			2x2_4
+			#1x 2C9 Great Works Begun There
+			1x2_9
 			#1x 7U13 Reckless Pride
 			1x7_13
 			#1x 4U57 Stout and Strong
@@ -321,12 +321,14 @@
 			2x7_203
 			#1x 1U225 Sword of Minas Morgul
 			1x1_225
-			#2x 1U203 All Blades Perish
-			2x1_203
-			#1x 7U176 Disposable Servants
-			1x7_176
+			#1x 1U203 All Blades Perish
+			1x1_203
 			#1x 1U213 Frozen by Fear
 			1x1_213
+			#1x 1U215 The Master's Will
+			1x1_215
+			#1x 7C220 War Long Planned
+			1x7_220
 			#2x 7C184 More Unbearable
 			2x7_184
 
