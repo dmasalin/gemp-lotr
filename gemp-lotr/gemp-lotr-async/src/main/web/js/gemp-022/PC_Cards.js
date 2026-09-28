@@ -648,7 +648,7 @@ var PCCards = {
 	// Horsemen Took Your Lands (V24)
 	'102_4'  : 'https://i.lotrtcgpc.net/sets/v02/LOTR-ENV2S004.0_card.jpg',
 	// No More Shall We Wait (V25)
-	'102_5'  : 'https://i.lotrtcgpc.net/sets/v02/LOTR-ENV2S005.0_card.jpg',
+	//'102_5'  : 'https://i.lotrtcgpc.net/sets/v02/LOTR-ENV2S005.0_card.jpg',
 	// Arwen, Lady of Rivendell (V26)
 	'102_6'  : 'https://i.lotrtcgpc.net/sets/v02/LOTR-ENV2S006.0_card.jpg',
 	// Deadly Contest (V27)
@@ -1071,7 +1071,7 @@ var PCCards = {
 	// Tormented Warrior (V3_34)
 	'103_34' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S034.0_card.jpg',
 	// War-beacon (V3_35)
-	'103_35' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S035.0_card.jpg',
+	//'103_35' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S035.0_card.jpg',
 	// The Way is Shut (V3_36)
 	//'103_36' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S036.0_card.jpg',
 	// Nor is He Early (V3_37)
@@ -1167,7 +1167,7 @@ var PCCards = {
 	// Death Take Us All (V3_82)
 	'103_82' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S082.0_card.jpg',
 	// Gondor Calls For Aid! (V3_83)
-	'103_83' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S083.0_card.jpg',
+	//'103_83' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S083.0_card.jpg',
 	// I Am No Man (V3_84)
 	'103_84' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S084.0_card.jpg',
 	// Merry, Master Holbytla (V3_85)
@@ -1382,9 +1382,9 @@ var PCCards = {
 	// Uruk-hai Armory (1C157) [Errata]
 	'51_157' : 'https://i.lotrtcgpc.net/errata/LOTR-EN01E157.1_card.jpg',
 	// Orthanc Berserker (3R66) [Errata]
-	'53_66'  : 'https://i.lotrtcgpc.net/errata/LOTR-EN03E066.1_card.jpg',
+	//'53_66'  : 'https://i.lotrtcgpc.net/errata/LOTR-EN03E066.1_card.jpg',
 	// Uruk Captain (2R46) [Errata]
-	'52_46'  : 'https://i.lotrtcgpc.net/errata/LOTR-EN02E046.1_card.jpg',
+	//'52_46'  : 'https://i.lotrtcgpc.net/errata/LOTR-EN02E046.1_card.jpg',
 	// Gimli's Helm (1R15) [Errata]
 	'51_15'  : 'https://i.lotrtcgpc.net/errata/LOTR-EN01E015.1_card.jpg',
 	// From the Armory (4U47) [Errata]
@@ -1442,11 +1442,11 @@ var PCCards = {
 	// Cirith Ungol Watcher, Hideous Warden (V3_92) [Errata]
 	'103_92' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S092.1_card.jpg',
 	// Ominous Sky (V3_97) [Errata]
-	'103_97' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S097.1_card.jpg',
+	//'103_97' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S097.1_card.jpg',
 	// Cover of Darkness, Omen of Horror (V3_95) [Errata]
 	'103_95' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S095.1_card.jpg',
 	// Cover of Darkness, Omen of Gloom (V3_65) [Errata]
-	'103_65' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S065.1_card.jpg',
+	//'103_65' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S065.1_card.jpg',
 	// Endless Night (V3_96) [Errata]
 	'103_96' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S096.1_card.jpg',
 	// Release the Prisoners! (V3_99) [Errata]
@@ -1471,6 +1471,25 @@ var PCCards = {
 	'103_126': 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S126.1_card.jpg',
 	// Pinnacle of Doom (V3_129) [Errata]
 	'103_129': 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S129.1_card.jpg',
+
+
+	//2026 Pre-WC Errata
+	// Uruk Captain (2R46) [Errata]
+	'52_46'  : 'https://i.lotrtcgpc.net/errata/LOTR-EN02E046.2_card.jpg',
+	// Orthanc Berserker (3R66) [Errata]
+	'53_66'  : 'https://i.lotrtcgpc.net/errata/LOTR-EN03E066.2_card.jpg',
+	// Final Strike (10U20) [Errata]
+	'60_20'  : 'https://i.lotrtcgpc.net/errata/LOTR-EN10E020.1_card.jpg',
+	// Ritual Oath of Enmity (V2_5) [Errata]
+	'102_5'  : 'https://i.lotrtcgpc.net/sets/v02/LOTR-ENV2E005.1_card.jpg',
+	// War-beacon (V3_35) [Errata]
+	'103_35' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S035.1_card.jpg',
+	// Cover of Darkness, Omen of Gloom (V3_65) [Errata]
+	'103_65' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S065.2_card.jpg',
+	// Gondor Calls For Aid! (V3_83) [Errata]
+	'103_83' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S083.1_card.jpg',
+	// Ominous Sky (V3_97) [Errata]
+	'103_97' : 'https://i.lotrtcgpc.net/sets/v03/LOTR-ENV3S097.2_card.jpg',
 
 
 	// Race to Mount Doom visual meta-sites

@@ -224,6 +224,13 @@ body {
     cursor: pointer;
 }
 
+/* A hand revealed to everyone (e.g. RTMD "play with your hand revealed"): same link colour, plus an outline so the
+   owner notices it too */
+.playerStats .handSize.revealedHand {
+    box-shadow: inset 0 0 0 2px #9f9fff;
+    border-radius: 6px;
+}
+
 .phase {
     color: #ffffff;
     font-size: 120%;

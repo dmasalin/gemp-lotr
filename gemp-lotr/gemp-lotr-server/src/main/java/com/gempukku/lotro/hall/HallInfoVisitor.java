@@ -11,7 +11,12 @@ public interface HallInfoVisitor {
 
     public void motd(String motd);
 
-    public void visitTable(String tableId, String gameId, boolean watchable, TableStatus status, String statusDescription, String formatName, String tournamentName, String userDesc, List<String> playerIds, boolean playing, boolean isPrivate, boolean isInviteOnly, String winner);
+    /**
+     * @param createdAt  when the table was opened (epoch ms, server clock)
+     * @param invitedYou the table is invite-only and the player being visited is its invitee
+     */
+    public void visitTable(String tableId, String gameId, boolean watchable, TableStatus status, String statusDescription, String formatName, String tournamentName, String userDesc, List<String> playerIds, boolean playing, boolean isPrivate, boolean isInviteOnly, String winner,
+                           long createdAt, boolean invitedYou);
 
     public void visitTournamentQueue(String tournamentQueueKey, int cost, String collectionName, String formatName, String type, String tournamentQueueName, String tournamentPrizes,
                                      String pairingDescription, String startCondition, int playerCount, String playerList, boolean playerSignedUp, boolean joinable, boolean startable,

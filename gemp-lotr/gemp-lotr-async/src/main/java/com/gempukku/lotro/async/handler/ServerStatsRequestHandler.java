@@ -4,7 +4,6 @@ import com.gempukku.lotro.async.HttpProcessingException;
 import com.gempukku.lotro.async.ResponseWriter;
 import com.gempukku.lotro.common.JSONDefs;
 import com.gempukku.lotro.game.GameHistoryService;
-import com.gempukku.lotro.game.Player;
 import com.gempukku.util.JsonUtils;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
@@ -33,12 +32,12 @@ public class ServerStatsRequestHandler extends LotroServerRequestHandler impleme
     @Override
     public void handleRequest(String uri, HttpRequest request, Map<Type, Object> context, ResponseWriter responseWriter, String remoteIp) throws Exception {
         if (uri.equals("") && request.method() == HttpMethod.GET) {
+            // Public, like the rest of Server Info: a visitor who is not logged in can read the server's activity (a
+            // hall link such as hall.html#info/stats opens it without asking them to log in).  Only totals per format
+            // and period; nothing about any one player.
             QueryStringDecoder queryDecoder = new QueryStringDecoder(request.uri());
-            String participantId = getQueryParameterSafely(queryDecoder, "participantId");
             String startDay = getQueryParameterSafely(queryDecoder, "startDay");
             String length = getQueryParameterSafely(queryDecoder, "length");
-
-            Player resourceOwner = getResourceOwnerSafely(request, participantId);
 
             try {
                 SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
@@ -60,6 +59,7 @@ public class ServerStatsRequestHandler extends LotroServerRequestHandler impleme
                 var stats = new JSONDefs.PlayHistoryStats();
                 stats.ActivePlayers = _gameHistoryService.getActivePlayersCount(from, to);
                 stats.GamesCount = _gameHistoryService.getGamesPlayedCount(from, to);
+                stats.BotGamesCount = _gameHistoryService.getBotGamesPlayedCount(from, to);
                 stats.StartDate = from.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                 stats.EndDate = to.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                 stats.Stats = _gameHistoryService.getGameHistoryStatistics(from, to);
