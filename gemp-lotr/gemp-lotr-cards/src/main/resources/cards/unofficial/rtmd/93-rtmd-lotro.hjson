@@ -142,18 +142,16 @@
 			trigger: {
 				type: SkirmishAboutToEnd
 			}
-			requires: [
-				{
-					type: OwnerIsFreeps
+			# Applies whichever side the holder is playing this turn (#1099): "your characters" are companions and
+			# allies while they are the Free Peoples player and minions while they are the Shadow player, and only
+			# the holder's own skirmish events count.
+			requires: {
+				type: Not
+				requires: {
+					type: PlayedCardThisPhase
+					filter: your,event,timeword(skirmish)
 				}
-				{
-					type: Not
-					requires: {
-						type: PlayedCardThisPhase
-						filter: your,event,timeword(skirmish)
-					}
-				}
-			]
+			}
 			effect: {
 				type: Wound
 				select: choose(your,character)
