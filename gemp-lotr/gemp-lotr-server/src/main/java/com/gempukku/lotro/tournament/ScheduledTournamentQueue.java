@@ -91,6 +91,19 @@ public class ScheduledTournamentQueue extends AbstractTournamentQueue implements
     }
 
     @Override
+    protected String getJoinRefusal() {
+        if (isRetired())
+            return "This tournament was changed by an administrator; refresh the hall and join the updated one.";
+        var window = isWC() ? _wcSignupTimeBeforeStart : _signupTimeBeforeStart;
+        var opens = _startTime.minus(window);
+        if (!DateUtils.Now().isAfter(opens))
+            return "Sign-up for " + getTournamentQueueName() + " opens at " + DateUtils.FormatDateTime(opens) + ".";
+        if (maximumPlayers >= 0 && _players.size() >= maximumPlayers)
+            return describeFull(maximumPlayers);
+        return super.getJoinRefusal();
+    }
+
+    @Override
     public boolean shouldBeDisplayedAsWaiting() {
         var window = _signupTimeBeforeStart;
         if (isWC()) {

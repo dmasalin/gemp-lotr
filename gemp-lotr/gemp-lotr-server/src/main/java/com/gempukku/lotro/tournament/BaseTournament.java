@@ -272,6 +272,9 @@ public abstract class BaseTournament implements Tournament {
         }
     }
 
+    /** What {@link #dropPlayer} returns when the player was dropped; any other answer says why they were not. */
+    public static final String DROPPED_MESSAGE = "You have successfully dropped from the tournament.  Thanks for playing!";
+
     @Override
     public String dropPlayer(String player) {
         writeLock.lock();
@@ -296,7 +299,7 @@ public abstract class BaseTournament implements Tournament {
                 finishTournament(null);
             }
 
-            return "You have successfully dropped from the tournament.  Thanks for playing!";
+            return DROPPED_MESSAGE;
         } finally {
             writeLock.unlock();
         }

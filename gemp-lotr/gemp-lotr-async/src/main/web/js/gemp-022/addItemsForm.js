@@ -4,6 +4,7 @@
  *
  * The markup lives in includes/admin/prizeAdmin.html; this class binds to it by id inside the given root:
  *   #additems-player-box / #additems-player-input   player chips + fuzzy name search (paste a list to add many)
+ *   #additems-event / #additems-event-load-button    load every player with a match in a recent league/tournament
  *   #additems-item-input / #additems-item-list       item search (cards, packs, selections, awards) + one row per item
  *   #additems-collection                             My cards, Trophy, or an active sealed/draft league's collection
  *   #additems-reason                                 optional note recorded on the transfer
@@ -21,6 +22,7 @@ var AddItemsForm = Class.extend({
     searchDelay: 250,
     players: null,        // [{input, name, status: "checking" | "ok" | "unknown", suggestions:[...], chip}]
     collections: null,    // value -> collection description from /admin/addItemsCollections
+    events: null,         // "kind:id" -> event description from /admin/addItemsEvents
     resolveSerial: 0,
 
     init: function (root, options) {
@@ -32,9 +34,12 @@ var AddItemsForm = Class.extend({
             this.searchDelay = options.searchDelay;
         this.players = [];
         this.collections = {};
+        this.events = {};
 
         this.playerBox = root.find("#additems-player-box");
         this.playerInput = root.find("#additems-player-input");
+        this.eventSelect = root.find("#additems-event");
+        this.eventLoadButton = root.find("#additems-event-load-button");
         this.itemInput = root.find("#additems-item-input");
         this.itemList = root.find("#additems-item-list");
         this.collectionSelect = root.find("#additems-collection");
@@ -46,6 +51,10 @@ var AddItemsForm = Class.extend({
         this._bindPlayers();
         this._bindItems();
 
+        this.eventLoadButton.button().click(function () { that.loadFromEvent(); });
+        // the select is width-clamped (long names ellipsize): the full name of the chosen event shows on hover
+        this.eventSelect.on("change", function () { that._updateEventTitle(); });
+
         root.find("#additems-review-button").button().click(function () { that.review(); });
         root.find("#additems-clear-button").button().click(function () { that.clear(); });
         root.find("#additems-send-button").button().click(function () { that.send(); });
@@ -56,6 +65,7 @@ var AddItemsForm = Class.extend({
 
         this._refreshItemsEmpty();
         this.loadCollections();
+        this.loadEvents();
     },
 
     // ---- players ----
@@ -192,10 +202,11 @@ var AddItemsForm = Class.extend({
         }));
     },
 
-    _addResolvedPlayer: function (name) {
+    /** meta (optional): where an event's player stands, {standing, gamesPlayed, dropped}; shown as the chip's tooltip. */
+    _addResolvedPlayer: function (name, meta) {
         if (this._findPlayer(name) != null)
             return;
-        var entry = {input: name, name: name, status: "ok", suggestions: []};
+        var entry = {input: name, name: name, status: "ok", suggestions: [], meta: meta || null};
         this.players.push(entry);
         this._renderChip(entry);
         this._hideSummary();
@@ -227,6 +238,14 @@ var AddItemsForm = Class.extend({
         chip.append($("<span class='additems-chip-name'></span>").text(entry.status == "ok" ? entry.name : entry.input));
         if (entry.status == "checking")
             chip.attr("title", "Checking...");
+        if (entry.status == "ok" && entry.meta) {
+            // loaded from an event: 0-game players (always the last ones loaded) are dimmed, so they are easy to spot
+            chip.attr("title", this._standingText(entry.meta));
+            if (!(entry.meta.gamesPlayed > 0))
+                chip.addClass("additems-chip-nogames");
+            if (entry.meta.dropped)
+                chip.addClass("additems-chip-dropped");
+        }
         if (entry.status == "unknown") {
             chip.attr("title", "No player with this name");
             var sugg = $("<span class='additems-chip-suggestions'></span>");
@@ -261,6 +280,139 @@ var AddItemsForm = Class.extend({
         else
             chip.insertBefore(this.playerInput);
         entry.chip = chip;
+    },
+
+    // ---- events ("load from event") ----
+
+    loadEvents: function () {
+        var that = this;
+        var select = this.eventSelect;
+        select.empty().append($("<option value=''></option>").text("Loading..."));
+        this.comm.getAddItemsEvents(function (json) {
+            that.setEvents((json && json.events) || []);
+        }, this._silentErrors(function () {
+            select.empty().append($("<option value=''></option>").text("Could not load events"));
+        }));
+    },
+
+    setEvents: function (list) {
+        var select = this.eventSelect;
+        this.events = {};
+        select.empty().append($("<option value=''></option>").text(list.length > 0 ? "Choose an event" : "No recent events"));
+        var leagues = $("<optgroup label='Leagues'></optgroup>");
+        var tournaments = $("<optgroup label='Tournaments'></optgroup>");
+        for (var i = 0; i < list.length; i++) {
+            var e = list[i];
+            var key = e.kind + ":" + e.id;
+            this.events[key] = e;
+            var label = this._eventLabel(e);
+            var option = $("<option></option>").attr("value", key).attr("title", label).text(label);
+            (e.kind == "tournament" ? tournaments : leagues).append(option);
+        }
+        if (leagues.children().length > 0)
+            select.append(leagues);
+        if (tournaments.children().length > 0)
+            select.append(tournaments);
+        select.val("");
+        this._updateEventTitle();
+    },
+
+    _updateEventTitle: function () {
+        var option = this.eventSelect.find("option:selected");
+        if (this.eventSelect.val() && option.length > 0)
+            this.eventSelect.attr("title", option.text());
+        else
+            this.eventSelect.removeAttr("title");
+    },
+
+    _eventLabel: function (e) {
+        var text = e.name || e.id;
+        var dates = this._dateText(e.start);
+        if (e.end)
+            dates += (dates ? " – " : "") + this._dateText(e.end);
+        else if (e.running)
+            dates += (dates ? " – " : "") + "running";
+        if (this._notStarted(e))
+            dates += (dates ? ", " : "") + "not started";
+        if (dates)
+            text += " (" + dates + ")";
+        if (e.playerCount != null)
+            text += " · " + e.playerCount + " signed up";
+        return text;
+    },
+
+    /** A league ("upcoming") or tournament ("scheduled") that has not started; listed only once someone signed up. */
+    _notStarted: function (e) {
+        return e.status == "upcoming" || e.status == "scheduled";
+    },
+
+    /** Tooltip of a chip loaded from an event: "3rd place · 4 games", "No games played · dropped", ... */
+    _standingText: function (meta) {
+        var parts = [];
+        if (meta.standing != null && meta.gamesPlayed > 0)
+            parts.push(this._ordinal(meta.standing) + " place");
+        parts.push(meta.gamesPlayed > 0 ? meta.gamesPlayed + " game" + (meta.gamesPlayed == 1 ? "" : "s")
+            : "No games played");
+        if (meta.dropped)
+            parts.push("dropped");
+        return parts.join(" · ");
+    },
+
+    _ordinal: function (n) {
+        var mod100 = n % 100, mod10 = n % 10;
+        var suffix = (mod100 >= 11 && mod100 <= 13) ? "th" : mod10 == 1 ? "st" : mod10 == 2 ? "nd" : mod10 == 3 ? "rd" : "th";
+        return n + suffix;
+    },
+
+    _dateText: function (iso) {
+        return iso ? String(iso).substr(0, 10) : "";
+    },
+
+    /**
+     * Adds every participant of the chosen event, whether they have played or not, to the players list in the order
+     * the server sends them: the event's standings, so players with no games come last (order "standings"), or
+     * alphabetical when nobody has played yet (order "name").  Names already there (input or resolved name, ignoring
+     * case) are left alone and not counted again.
+     */
+    loadFromEvent: function () {
+        var that = this;
+        var key = this.eventSelect.val();
+        var event = key ? this.events[key] : null;
+        if (!event) {
+            this.result.text("Choose an event to load players from first.");
+            return;
+        }
+        var button = this.eventLoadButton;
+        button.button("option", "disabled", true);
+        this.result.text("Loading players from " + event.name + "...");
+        this.comm.getAddItemsEventParticipants(event.kind, event.id, function (json) {
+            button.button("option", "disabled", false);
+            var players = (json && json.players) || [];
+            var added = 0, addedNoGames = 0;
+            for (var i = 0; i < players.length; i++) {
+                var p = players[i];
+                if (!p || !p.name || that._findPlayer(p.name) != null)
+                    continue;
+                that._addResolvedPlayer(p.name, {standing: p.standing, gamesPlayed: p.gamesPlayed || 0, dropped: !!p.dropped});
+                added++;
+                if (!(p.gamesPlayed > 0))
+                    addedNoGames++;
+            }
+            var eventName = (json && json.name) || event.name;
+            if (players.length == 0) {
+                that.result.text("Nobody has signed up for " + eventName + ".");
+                return;
+            }
+            var skipped = players.length - added;
+            var text = "Added " + added + " player" + (added == 1 ? "" : "s") + " from " + eventName;
+            if (added > 1)
+                text += (json && json.order == "standings") ? ", in standings order" : ", alphabetically (no games played yet)";
+            if (json && json.order == "standings" && addedNoGames > 0)
+                text += "; the last " + (addedNoGames == 1 ? "one has" : addedNoGames + " have") + " played no games";
+            if (skipped > 0)
+                text += " (" + skipped + " already in the list)";
+            that.result.text(text + ".");
+        }, this._errorMap(this.result, function () { button.button("option", "disabled", false); }));
     },
 
     // ---- items ----
@@ -592,7 +744,7 @@ var AddItemsForm = Class.extend({
             "401": function () { done("401: You are not logged in."); },
             "403": function () { done("403: You do not have permission to perform such actions."); },
             "404": function () { done("404: Info not found.  Check that your input is correct with removed whitespace and try again."); },
-            "410": function () { done("410: You have been inactive for too long and were loggedout. Refresh the page if you wish to re-stablish connection."); },
+            "410": function () { done("410: You have been inactive for too long and were logged out. Refresh the page if you wish to re-establish connection."); },
             "500": function () { done("500: Server error. One of the provided parameters was probably malformed.  Double-check your input and try again."); }
         };
     }

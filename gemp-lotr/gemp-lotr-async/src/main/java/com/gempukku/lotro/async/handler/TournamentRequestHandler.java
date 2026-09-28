@@ -102,7 +102,14 @@ public class TournamentRequestHandler extends LotroServerRequestHandler implemen
 
     private void getTournamentFormats(HttpRequest request, ResponseWriter responseWriter) throws IOException, HttpProcessingException {
         var postDecoder = new HttpPostRequestDecoder(request);
+        try {
+            getTournamentFormats(request, postDecoder, responseWriter);
+        } finally {
+            postDecoder.destroy();
+        }
+    }
 
+    private void getTournamentFormats(HttpRequest request, HttpPostRequestDecoder postDecoder, ResponseWriter responseWriter) throws IOException, HttpProcessingException {
         String participantId = getFormParameterSafely(postDecoder, "participantId");
         Player resourceOwner = getResourceOwnerSafely(request, participantId);
 
@@ -136,10 +143,20 @@ public class TournamentRequestHandler extends LotroServerRequestHandler implemen
 
     private void processPlayerMadeTournament(HttpRequest request, ResponseWriter responseWriter) throws Exception {
         var postDecoder = new HttpPostRequestDecoder(request);
+        try {
+            processPlayerMadeTournament(request, postDecoder, responseWriter);
+        } finally {
+            postDecoder.destroy();
+        }
+    }
 
+    private void processPlayerMadeTournament(HttpRequest request, HttpPostRequestDecoder postDecoder, ResponseWriter responseWriter) throws Exception {
         String participantId = getFormParameterSafely(postDecoder, "participantId");
         Player resourceOwner = getResourceOwnerSafely(request, participantId);
         String deckName = getFormParameterSafely(postDecoder, "deckName");
+        // deckSource=library: the creator's deck is a Deck Library deck (owned by the Librarian)
+        String deckSource = getFormParameterSafely(postDecoder, "deckSource");
+        Player deckOwner = (deckSource != null && deckSource.equalsIgnoreCase("library")) ? getLibrarian() : resourceOwner;
 
         String typeStr = getFormParameterSafely(postDecoder, "type");
         String deckbuildingDurationStr = getFormParameterSafely(postDecoder, "deckbuildingDuration");
@@ -284,14 +301,22 @@ public class TournamentRequestHandler extends LotroServerRequestHandler implemen
             return;
         }
         try {
-            if (_hallServer.addPlayerMadeQueue(info, resourceOwner, deckName, startable, readyCheck)) {
+            if (_hallServer.addPlayerMadeQueue(info, resourceOwner, deckOwner, deckName, startable, readyCheck)) {
                 responseWriter.sendJsonOK();
             } else {
-                Throw400IfValidationFails("Error", "Error", false, "Error while creating queue or joining");
+                writeJsonError(responseWriter, "The tournament could not be created: one with the same id already exists. Please try again.");
             }
-        } catch (HallException badDeck) {
-            Throw400IfValidationFails("deckName", deckName, false, "Select valid deck for the requested format");
+        } catch (HallException refused) {
+            // the reason the player can act on, e.g. "Your selected deck is not valid for this format: ..."
+            writeJsonError(responseWriter, refused.getMessage());
         }
+    }
+
+    // A 400 whose JSON body {"error": "..."} carries a message meant for the player (the Play popup shows it as is).
+    private void writeJsonError(ResponseWriter responseWriter, String message) {
+        var body = new HashMap<String, String>();
+        body.put("error", message);
+        responseWriter.writeJsonResponse(400, JsonUtils.Serialize(body));
     }
 
     private void getTournamentInfo(HttpRequest request, String tournamentId, ResponseWriter responseWriter) throws Exception {

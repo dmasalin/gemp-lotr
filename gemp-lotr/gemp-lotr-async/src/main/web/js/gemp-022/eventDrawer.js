@@ -5,12 +5,13 @@
  *
  * A drawer is an inset pane that hangs under a header element (a table row, or an EventDrawer.row header) and slides
  * open and shut.  Its content is fetched on the first opening; later toggles only slide it.  A failed fetch is
- * retried on the next opening.
+ * retried on the next opening, and so is a drawer marked stale (invalidate(), when the page's data was refreshed while
+ * it was shut): it reopens showing its old content, which the re-fetched one then replaces.
  *
  *   var drawer = new EventDrawer({
  *       header: $row,                 // gets class "expanded" while open
  *       button: $button,              // optional jQuery UI button: label and aria-expanded follow the state
- *       closedLabel: "See details", openLabel: "Hide details",
+ *       closedLabel: "+ Details", openLabel: "\u2212 Details",   // the defaults
  *       mount: function (slide) {...},// optional: puts the slide wrapper in the DOM and returns the element to hide
  *                                     // while closed (default: inserted right after the header, and hidden itself)
  *       load: function (drawer, content) {
@@ -20,6 +21,8 @@
  *       }
  *   });
  *   drawer.toggle();  drawer.open();  drawer.close();  drawer.refresh();   // open(true) / close(true): no animation
+ *   drawer.invalidate();   // a shut drawer re-fetches on its next opening; an open one is refreshed by the caller
+ *   drawer.refresh(true);  // quiet: a failed re-fetch keeps the old content (data refreshes)
  *
  * EventDrawer.row(...) builds the Events-tab header row ([button] title ...... date) with its drawer underneath.
  *
@@ -34,8 +37,9 @@ var EventDrawer = Class.extend({
     holder: null,      // what mount() put in the DOM around the slide wrapper; hidden while closed
     slide: null,       // the wrapper whose height animates
     content: null,     // the pane inside it; replaced (so stale responses can be recognised) when an error is retried
-    status: null,      // null (never opened) | loading | loaded | error
+    status: null,      // null (never opened) | loading | loaded | error | stale (loaded, but refetch when reopened)
     expanded: false,
+    quiet: false,      // the fetch in flight is a quiet refresh (see refresh)
 
     init: function (options) {
         this.options = $.extend({
@@ -45,8 +49,8 @@ var EventDrawer = Class.extend({
             errorClass: "event-drawer-error",
             loadingText: "Loading details…",
             expandedClass: "expanded",
-            closedLabel: "See details",
-            openLabel: "Hide details",
+            closedLabel: EventDrawer.CLOSED_LABEL,
+            openLabel: EventDrawer.OPEN_LABEL,
             mount: null,
             load: null,
             onToggle: null
@@ -71,8 +75,11 @@ var EventDrawer = Class.extend({
         if (this.expanded)
             return;
         if (this.holder != null && this.status != "error") {
+            var stale = this.status == "stale";
             this.holder.show();
             this.setExpanded(true);
+            if (stale)
+                this.refresh(true);
             this.animate(true, instant);
             return;
         }
@@ -105,12 +112,20 @@ var EventDrawer = Class.extend({
     },
 
     // Fetches and renders the content again in place (e.g. after joining a league), keeping the drawer's open state;
-    // the old content stays until the new one replaces it.
-    refresh: function () {
+    // the old content stays until the new one replaces it.  quiet (a data refresh): a failed fetch keeps the old
+    // content instead of showing the error, and the drawer is fetched again at its next refresh / opening.
+    refresh: function (quiet) {
         if (this.content == null || this.options.load == null)
             return;
         this.status = "loading";
+        this.quiet = !!quiet;
         this.options.load(this, this.content);
+    },
+
+    // The data behind a shut, loaded drawer has changed (or may have): its next opening fetches again.
+    invalidate: function () {
+        if (!this.expanded && this.status == "loaded")
+            this.status = "stale";
     },
 
     // Replaces the pane's content through render(content), easing the height if the drawer is open.  Ignored (returns
@@ -120,6 +135,7 @@ var EventDrawer = Class.extend({
         var that = this;
         if (content == null || content !== this.content)
             return false;
+        this.quiet = false;
         EventDrawer.resize(this.slide, this.expanded, function () {
             that.status = (render(content) === false) ? "error" : "loaded";
         });
@@ -127,6 +143,11 @@ var EventDrawer = Class.extend({
     },
 
     fail: function (content, message) {
+        if (this.quiet && content != null && content === this.content) {
+            this.quiet = false;
+            this.status = "stale";
+            return false;
+        }
         var errorClass = this.options.errorClass;
         return this.settle(content, function (c) {
             c.empty().append($("<div></div>").addClass(errorClass).text(message));
@@ -171,6 +192,15 @@ var EventDrawer = Class.extend({
 });
 
 EventDrawer.SLIDE_MS = 250;
+
+// The details toggle's labels everywhere on the Events tab (and wherever else a drawer row is used).  The open label
+// starts with a real minus sign, which is as wide as the plus, so the button does not change width.
+EventDrawer.CLOSED_LABEL = "+ Details";
+EventDrawer.OPEN_LABEL = "\u2212 Details";
+
+// The one class every details toggle carries (a row's toggle, the completed-events table's toggle, the calendar
+// preview's "Go to ..." button), so they share size and padding.
+EventDrawer.BUTTON_CLASS = "event-details-button";
 
 EventDrawer.duration = function () {
     if (typeof window != "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)
@@ -287,7 +317,7 @@ EventDrawer.scrollIntoView = function (element) {
  *       kind: "league" | "tournament" | "projected",   // adds class event-row-<kind>
  *       title: "...", date: "...", dateTitle: "tooltip for the date",
  *       extras: [$(...)],          // shown after the title (admin-only bits etc.); caller escapes their content
- *       action: undefined          // the See details / Hide details toggle
+ *       action: undefined          // the + Details / - Details toggle
  *             | {label, click}     // a fixed button instead (the calendar's "Go to League"); the drawer never closes
  *             | false,             // no button at all
  *       open: true,                // born open (no animation)
@@ -308,7 +338,7 @@ EventDrawer.row = function (options) {
     var drawerOptions = $.extend({}, options.drawer || {});
     var button = null;
     if (options.action !== false) {
-        button = $("<button type='button' class='event-row-button'></button>");
+        button = $("<button type='button' class='event-row-button'></button>").addClass(EventDrawer.BUTTON_CLASS);
         header.append(button);
     }
     header.append($("<span class='event-row-title'></span>").text(options.title == null ? "" : String(options.title)));
@@ -345,4 +375,83 @@ EventDrawer.row = function (options) {
     if (options.open)
         drawer.open(true);
     return {element: element, header: header, button: button, drawer: drawer};
+};
+
+/**
+ * Brings a list of EventDrawer.row rows up to date with freshly fetched items, in place (a data refresh):
+ *
+ *   rows = EventDrawer.updateRows(list, rows, items, {
+ *       key: function (item) {...},      // the event's id
+ *       create: function (item) {...},   // a new {element, header, button, drawer} row
+ *       title: function (item) {...}, date: function (item) {...},   // header texts, updated on rows kept
+ *       emptyText: "..."                 // shown when there are no items
+ *   });
+ *
+ * Rows whose key is still listed keep their element, drawer and open / shut state; an open drawer is re-fetched and
+ * re-rendered where it is, a shut one is marked stale so its next opening fetches again.  New items get rows, rows
+ * not listed any more are removed, rows are put in the items' order (moving only those out of place), and anything
+ * else in the list (the empty line, an error) is removed.  Everything changes in one go, so the page never shrinks
+ * in between and the scroll position holds.  Returns the new key -> row map.
+ */
+EventDrawer.updateRows = function (list, rows, items, spec) {
+    rows = rows || {};
+    var next = {};
+    var ordered = [];
+    var kept = [];
+    for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var key = String(spec.key(item));
+        if (next[key] != null)
+            continue;
+        var row = rows[key];
+        if (row != null) {
+            EventDrawer.setText(row.header.children(".event-row-title"), spec.title ? spec.title(item) : null);
+            EventDrawer.setText(row.header.children(".event-row-date"), spec.date ? spec.date(item) : null);
+            kept.push(row);
+        } else {
+            row = spec.create(item);
+        }
+        next[key] = row;
+        ordered.push(row);
+    }
+
+    var wanted = [];
+    for (var o = 0; o < ordered.length; o++)
+        wanted.push(ordered[o].element[0]);
+    list.children().each(function () {
+        if ($.inArray(this, wanted) < 0)
+            $(this).remove();
+    });
+
+    var previous = null;
+    for (var w = 0; w < wanted.length; w++) {
+        var node = wanted[w];
+        var expected = previous == null ? list[0].firstElementChild : previous.nextElementSibling;
+        if (node !== expected) {
+            if (previous == null)
+                list.prepend(node);
+            else
+                $(previous).after(node);
+        }
+        previous = node;
+    }
+    if (ordered.length == 0 && spec.emptyText)
+        list.append($("<i></i>").text(spec.emptyText));
+
+    for (var k = 0; k < kept.length; k++) {
+        var drawer = kept[k].drawer;
+        if (drawer.isOpen())
+            drawer.refresh(true);
+        else
+            drawer.invalidate();
+    }
+    return next;
+};
+
+EventDrawer.setText = function (element, value) {
+    if (value == null || element.length == 0)
+        return;
+    var text = String(value);
+    if (element.text() !== text)
+        element.text(text);
 };

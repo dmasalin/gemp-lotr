@@ -372,12 +372,10 @@ public class ModifiersLogic implements ModifiersEnvironment, ModifiersQuerying {
     private boolean isCandidateForKeywordRemovalWithTextRemoval(LotroGame game, PhysicalCard physicalCard, Keyword keyword) {
         if (!keyword.isRealKeyword())
             return false;
-        // The Ring-bearer, Frodo, and Sam are ALWAYS Ring-bound by rule (see RingRelatedRule), not by printed game text,
-        // so removing their game text or keywords cannot strip it.
-        if (keyword == Keyword.RING_BOUND
-                && (game.getGameState().getRingBearer(physicalCard.getOwner()) == physicalCard
-                    || Filters.frodo.accepts(game, physicalCard)
-                    || Filters.sam.accepts(game, physicalCard)))
+        // Ring-bearer is ALWAYS Ring-bound and cannot lose that.
+        // Frodo and Sam are deliberately NOT exempted: per ruling, Ring-bound is a keyword and keywords are game text,
+        // so e.g. Helpless ("Sam's game text does not apply") leaves a non-Ring-bearer Sam unbound.
+        if (keyword == Keyword.RING_BOUND && game.getGameState().getRingBearer(physicalCard.getOwner()) == physicalCard)
             return false;
         return true;
     }
@@ -1272,7 +1270,9 @@ public class ModifiersLogic implements ModifiersEnvironment, ModifiersQuerying {
 
     @Override
     public boolean assignmentCostWasPaid(LotroGame game, PhysicalCard card) {
-        for (Modifier modifier : getModifiers(game, ModifierEffect.PAID_ASSIGNMENT_COST_MODIFIER))
+        // Only modifiers that affect this specific card count: paying the cost for one minion must not
+        // mark every other minion with an assignment cost as paid.
+        for (Modifier modifier : getModifiersAffectingCard(game, ModifierEffect.PAID_ASSIGNMENT_COST_MODIFIER, card))
             if (modifier.isAssignmentCostPaid(game, card))
                 return true;
         return false;

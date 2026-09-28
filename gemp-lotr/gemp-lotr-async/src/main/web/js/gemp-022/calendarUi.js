@@ -18,7 +18,8 @@
  *
  * Without "details", clicking an event calls the matching callback straight away (the admin pages use this to
  * load the event into their forms).  With it, a click fills that container with the event's name, dates, description
- * and serie schedule plus a "Go to ..." button, and the callback runs when the button is pressed.
+ * and serie schedule plus a "Go to ..." button, and the callback runs when the button is pressed.  Whatever the
+ * container holds before the first click (the Events tab's "Click on an event above..." placeholder) is replaced.
  *
  * With "details" AND leagueUI / tournamentUI (the player-facing Events tab), a click instead renders the same header
  * row the Current Leagues / Current Tournaments lists use, with a "Go to League" / "Go to Tournament" button in place
@@ -27,9 +28,13 @@
  * tournament that has not started, a projected league, a failed fetch) get the facts described above inside the
  * same frame.  Without the matching UI, that kind falls back to the same frame with the facts.
  *
+ * A scheduled tournament whose hall queue is open (event.queueOpen) also gets the hall's "Join Queue" button in its
+ * preview (options.queueJoiner, default hall.tableJoiner; see joinQueueButton).
+ *
  * Events the viewer has joined (event.joined) are drawn in bold.
  *   cal.show();               // current month
  *   cal.show(2026, 11);       // a specific month
+ *   cal.refresh();            // re-fetch the month shown, keeping the selected event and its preview (see refresh)
  *
  * All date arithmetic is done in UTC, because the server reports dates in UTC.
  */
@@ -81,18 +86,54 @@ var EventCalendarUI = Class.extend({
 
     // ---- data ----
 
-    load: function () {
+    // then: runs after a successful load has been rendered
+    load: function (then) {
         var that = this;
         var range = this.gridRange();
         this.comm.getCalendar(range.from, range.to,
             function (json) {
                 that.events = json.events || [];
                 that.render();
+                if (then)
+                    then();
             },
             {
                 "400": function () { that.container.html("<div>Could not load the calendar.</div>"); },
                 "401": function () { that.container.html("<div>You must be logged in to see the calendar.</div>"); }
             });
+    },
+
+    // A data refresh (the Events tab calls it when the viewer comes back): the month shown is fetched and redrawn, the
+    // selected event stays selected, and its details / preview are brought up to date in place.  A preview whose event
+    // changed in the calendar feed (joined, started, queue opened...) is rebuilt; otherwise only its drawer re-fetches.
+    refresh: function () {
+        var that = this;
+        this.load(function () {
+            that.refreshSelected();
+        });
+    },
+
+    refreshSelected: function () {
+        var old = this.selected;
+        if (old == null || !this.options.details)
+            return;
+        var fresh = null;
+        for (var i = 0; i < this.events.length; i++) {
+            var event = this.events[i];
+            if (event.kind == old.kind && event.id == old.id && event.scheduleId == old.scheduleId) {
+                fresh = event;
+                break;
+            }
+        }
+        if (fresh != null && JSON.stringify(fresh) !== JSON.stringify(old)) {
+            this.selected = fresh;
+            this.renderDetails(fresh);
+            return;
+        }
+        if (fresh != null)
+            this.selected = fresh;
+        if (this.previewMode() && this.preview != null && this.preview.drawer.isOpen())
+            this.preview.drawer.refresh(true);
     },
 
     // The grid always shows whole weeks: the first row starts on the Monday on or before the 1st of the month and
@@ -384,6 +425,9 @@ var EventCalendarUI = Class.extend({
         head.append($("<span class='calendar-chip kind-" + event.kind + "'></span>").text(EventCalendarUI.kindLabel(event)));
         if (event.joined)
             head.append("<span class='calendar-details-joined'>You are signed up</span>");
+        var joinButton = this.joinQueueButton(event);
+        if (joinButton)
+            head.append(joinButton);
         panel.append(head);
         this.renderFacts(event, panel);
     },
@@ -429,6 +473,31 @@ var EventCalendarUI = Class.extend({
         }
     },
 
+    // ==== tabs-account: "Join Queue" for a scheduled tournament whose hall queue is taking sign-ups ====
+    // The server registers a scheduled tournament's hall queue under the tournament's own id, and the calendar feed
+    // says whether it is open (queueOpen) with the queue's type and start text.  The button is the hall's own
+    // (JoinTable.generateJoinQueueButton, fed an element shaped like the hall poll's <queue>), so joining works
+    // exactly as in the Waiting Tables list.  No button where there is no hall (admin pages) or no open queue.
+    joinQueueButton: function (event) {
+        if (event.kind != "tournament" || event.queueOpen !== true || event.joined)
+            return null;
+        var joiner = this.options.queueJoiner || (window.hall ? window.hall.tableJoiner : null);
+        if (!joiner || typeof joiner.generateJoinQueueButton != "function")
+            return null;
+        var queue = $.parseXML("<queue/>").documentElement;
+        queue.setAttribute("id", String(event.id));
+        queue.setAttribute("queue", event.name == null ? "" : String(event.name));
+        queue.setAttribute("type", event.queueType == null ? "" : String(event.queueType));
+        queue.setAttribute("start", event.queueStart == null ? "" : String(event.queueStart));
+        queue.setAttribute("joinable", "true");
+        queue.setAttribute("signedUp", "false");
+        var button = joiner.generateJoinQueueButton(queue);
+        if (button)
+            $(button).addClass("calendar-join-queue");
+        return button;
+    },
+    // ==== end tabs-account ====
+
     // Header row (as in the Current Leagues / Tournaments lists) with a "Go to ..." button and the drawer open below.
     renderPreview: function (event) {
         var that = this;
@@ -451,6 +520,9 @@ var EventCalendarUI = Class.extend({
             extras.push($("<span class='calendar-chip kind-" + event.kind + "'></span>").text(EventCalendarUI.kindLabel(event)));
         if (event.joined)
             extras.push($("<span class='calendar-details-joined'></span>").text("You are signed up"));
+        var joinButton = this.joinQueueButton(event);
+        if (joinButton)
+            extras.push(joinButton);
 
         var fallback = function (content) {
             that.renderFacts(event, content);
@@ -470,7 +542,7 @@ var EventCalendarUI = Class.extend({
                 kind: event.kind,
                 title: event.name,
                 date: EventCalendarUI.previewDate(event),
-                dateTitle: "Server time (UTC / GMT+0)",
+                dateTitle: "Server time (UTC)",
                 extras: extras,
                 action: action,
                 open: true,

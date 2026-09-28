@@ -60,6 +60,10 @@ public class JSONDefs {
         public String adventure;
         public String code;
         public String name;
+        /** Optional one- or two-sentence plain-English summary shown to players next to the format name. */
+        public String description;
+        /** Server-computed for the Play popup, e.g. "Cards from sets 1-10, V1-V3" (never read from lotrFormats.hjson). */
+        public String setSummary;
         public int order = 1000;
         public String surveyUrl;
         public String sites;
@@ -111,6 +115,17 @@ public class JSONDefs {
         public Map<String, ItemStub> DraftTemplates;
         public Map<String, ItemStub> TableDraftTemplates;
         public List<String> TableDraftTimerTypes;
+        /** The game timers a Casual table can be opened with, in menu order. */
+        public List<TimerInfo> HallTimers;
+    }
+
+    public static class TimerInfo {
+        public String code;
+        public String name;
+        public int minutesPerPlayer;
+        public int minutesPerDecision;
+        /** The server's plain-English explanation of the timer. */
+        public String description;
     }
 
     public static class PlayerMadeTournamentAvailableFormats {
@@ -142,6 +157,8 @@ public class JSONDefs {
         public List<DBDefs.FormatStats> Stats;
         public int ActivePlayers;
         public int GamesCount;
+        /** games with a bot on either side (also counted in GamesCount) */
+        public int BotGamesCount;
         public String StartDate;
         public String EndDate;
     }

@@ -2,19 +2,24 @@
  * Current leagues and one league's full detail.
  *
  *   new LeagueResultsUI(url)                       // legacy: list in $("#leagueResults"), shared detail area
- *   new LeagueResultsUI(url, joinCallback)         //         $("#leagueExtraInfo") (the hall's Join Current League)
+ *   new LeagueResultsUI(url, joinCallback)         //         $("#leagueExtraInfo") (no page uses this mode now)
  *   new LeagueResultsUI(url, joinCallback, {list: $container})
- *       // list mode (the Events tab): every league is a header row ([See details] name ...... dates) with its own
+ *       // list mode (the Events tab, and Play > League): every league is a header row ([+ Details] name ...... dates) with its own
  *       // drawer underneath (eventDrawer.js) holding the full detail, rendered where the viewer clicked.  Several
  *       // drawers may be open at once.  Options:
  *       //   list:     container for the rows (required for list mode)
  *       //   autoLoad: false = do not fetch the list from the constructor (default true)
+ *       //   onJoinError: function (leagueCode, message, status) reporting a failed join (default: alert on 409)
  *
- * joinCallback, if given, runs after the viewer joins a league from any of this object's renders.  In list mode the
+ * joinCallback(leagueCode), if given, runs after the viewer joins a league from any of this object's renders.  In list mode the
  * joined league's drawer (and any other open drawer showing that league, e.g. the calendar preview) is re-rendered in
  * place, still open.
  *
  * createLeagueRow(league, options) builds one row + drawer; the calendar preview (calendarUi.js) uses it too.
+ *
+ * refreshList() (list mode) re-fetches the list and updates it in place: rows keep their element and drawer, open
+ * drawers are re-rendered where they are (keeping the results tab the viewer had chosen), shut ones re-fetch when next
+ * opened, new leagues get rows and finished ones lose theirs.  The Events tab calls it when the viewer comes back.
  */
 var LeagueResultsUI = Class.extend({
     communication:null,
@@ -179,13 +184,9 @@ var LeagueResultsUI = Class.extend({
                                     else
                                         that.loadResultsWithLeague(leagueCode);
                                     if(that.joinCallback != null) {
-                                        that.joinCallback();
+                                        that.joinCallback(leagueCode);
                                     }
-                                }, {
-                                    "409":function () {
-                                        alert("You don't have enough funds to join this league.");
-                                    }
-                                });
+                                }, that.joinErrorMap(leagueCode));
                             });
                     };
                 })(leagueType, costStr);
@@ -254,8 +255,9 @@ var LeagueResultsUI = Class.extend({
                     var modifierUrl = Card.getImageUrl(modBpId);
                     var overlayHeight = Card.MetaSiteOverlayHeight;
 
-                    var thumbWrapper = $("<div style='position:relative;width:120px;height:167px;border:" + borderStyle
-                        + ";border-radius:8px;overflow:hidden;cursor:pointer;flex-shrink:0;'></div>");
+                    var thumbWrapper = $("<div class='rtmd-meta-site' style='position:relative;width:120px;height:167px;border:" + borderStyle
+                        + ";border-radius:8px;overflow:hidden;cursor:pointer;flex-shrink:0;'></div>")
+                        .attr({"data-modifier": modBpId || "", "data-visual": visBpId || ""});
                     thumbWrapper.append("<img src='" + visualUrl + "' style='width:100%;height:100%;object-fit:cover;'>");
                     if (visBpId) {
                         thumbWrapper.append("<div style='position:absolute;bottom:0;width:100%;height:" + overlayHeight
@@ -265,8 +267,8 @@ var LeagueResultsUI = Class.extend({
                     thumbWrapper.append("<div style='position:absolute;top:30%;left:10%;font-size:11px;font-weight:bold;"
                         + "color:white;text-shadow:0 0 3px black,0 0 3px black;'>" + pos + "</div>");
 
-                    // Click handler: open card in the shared CardInfoDialog
-                    (function(vBpId, mBpId) {
+                    // Click handler (without the hall's shared card preview): open card in a CardInfoDialog
+                    if (!window.GempCardPreview) (function(vBpId, mBpId) {
                         thumbWrapper.on("click contextmenu", function(event) {
                             event.preventDefault();
                             if (!that.cardInfoDialog) {
@@ -295,6 +297,21 @@ var LeagueResultsUI = Class.extend({
                     cardRow.append(thumbWrapper);
                 }
                 pathDiv.append(cardRow);
+                // Click / right-click: the hall's zoomable card preview (js/gemp-022/cardPreview.js), which remembers
+                // its zoom level: the position's visual card with the modifier over its bottom
+                if (window.GempCardPreview) {
+                    GempCardPreview.bind(cardRow, ".rtmd-meta-site", {
+                        click: true,
+                        contextmenu: true,
+                        resolve: function (element) {
+                            var mod = $(element).attr("data-modifier");
+                            var vis = $(element).attr("data-visual");
+                            if (!mod && !vis)
+                                return null;
+                            return vis ? {blueprintId: vis, overlayBlueprintId: mod || null} : {blueprintId: mod};
+                        }
+                    });
+                }
 
                 if (cumulative) {
                     pathDiv.append("<div style='color:#888; font-size:0.9em; margin-top:4px;'>Cumulative mode: all prior meta-sites remain active</div>");
@@ -415,7 +432,7 @@ var LeagueResultsUI = Class.extend({
                 }
 
                 var duration = start + " to " + end;
-                $("#leagueResults").append("<div class='leagueDuration'><b>Duration (GMT+0):</b> " + duration + "</div>");
+                $("#leagueResults").append("<div class='leagueDuration'><b>Duration (server time, UTC):</b> " + duration + "</div>");
 
                 var detailsBut = $("<button>See details</button>").button();
                 detailsBut.click(
@@ -434,7 +451,8 @@ var LeagueResultsUI = Class.extend({
 
     // ---- list mode (the Events tab's Current Leagues): one header row + drawer per league ----
 
-    // Fetches and renders the list.  Concurrent callers share one request; each `then` runs after the render.
+    // Fetches and renders the list.  Concurrent callers share one request; each `then` runs after the render (or,
+    // when the request fails, after the error is shown).
     loadList:function (then) {
         var that = this;
         if (this.listPending != null) {
@@ -452,10 +470,65 @@ var LeagueResultsUI = Class.extend({
                     waiting[i]();
             },
             EventDrawer.errorMap(function (message) {
+                var waiting = that.listPending || [];
                 that.listPending = null;
                 that.list.empty().append($("<div class='event-drawer-error'></div>")
                     .text("Could not load the current leagues. " + message));
+                for (var i = 0; i < waiting.length; i++)
+                    waiting[i]();
             }));
+    },
+
+    // Re-fetches the list and updates it in place (see the header comment).  A failed refresh keeps what is shown.
+    refreshList:function () {
+        var that = this;
+        if (this.list == null)
+            return;
+        if (!this.listLoaded) {
+            this.loadList();
+            return;
+        }
+        if (this.listPending != null)
+            return;
+        this.listPending = [];
+        this.communication.getLeagues(
+            function (xml) {
+                var waiting = that.listPending || [];
+                that.listPending = null;
+                that.updateLeagueRows(xml.documentElement);
+                for (var i = 0; i < waiting.length; i++)
+                    waiting[i]();
+            },
+            EventDrawer.errorMap(function () {
+                var waiting = that.listPending || [];
+                that.listPending = null;
+                for (var i = 0; i < waiting.length; i++)
+                    waiting[i]();
+            }));
+    },
+
+    updateLeagueRows:function (root) {
+        var that = this;
+        if (root == null || root.tagName != 'leagues')
+            return;
+        var leagues = root.getElementsByTagName("league");
+        var data = [];
+        for (var i = 0; i < leagues.length; i++) {
+            data.push({
+                code: leagues[i].getAttribute("code"),
+                name: leagues[i].getAttribute("name"),
+                start: leagues[i].getAttribute("start"),
+                end: leagues[i].getAttribute("end")
+            });
+        }
+        this.rows = EventDrawer.updateRows(this.list, this.rows, data, {
+            key: function (league) { return league.code; },
+            create: function (league) { return that.createLeagueRow(league); },
+            title: function (league) { return league.name; },
+            date: function (league) { return LeagueResultsUI.dateRange(league.start, league.end); },
+            emptyText: "There are no current leagues at the moment."
+        });
+        this.listLoaded = true;
     },
 
     renderLeagueRows:function (root) {
@@ -484,7 +557,7 @@ var LeagueResultsUI = Class.extend({
     // One league's header row and drawer.
     //   league:  {code, name, start, end}
     //   options: {
-    //       action:   undefined = the See details / Hide details toggle; {label, click} = a fixed button (the
+    //       action:   undefined = the + Details / - Details toggle; {label, click} = a fixed button (the
     //                 calendar's "Go to League"), in which case the drawer is meant to stay open
     //       open:     true = born open
     //       fallback: function (content, message, status) rendering something instead of an error when the league
@@ -510,7 +583,7 @@ var LeagueResultsUI = Class.extend({
             kind: "league",
             title: league.name,
             date: LeagueResultsUI.dateRange(league.start, league.end),
-            dateTitle: "Server time (UTC / GMT+0)",
+            dateTitle: "Server time (UTC)",
             extras: extras,
             action: options.action,
             open: options.open,
@@ -544,6 +617,9 @@ var LeagueResultsUI = Class.extend({
     // Returns false when the league could not be displayed.
     renderLeagueDrawer:function (xml, code, drawer, content) {
         var that = this;
+        // a re-render (refresh, join) keeps the results tab the viewer had chosen
+        var tabs = content.find(".ui-tabs").first();
+        var activeTab = tabs.length > 0 && tabs.tabs("instance") ? tabs.tabs("option", "active") : null;
         content.empty();
         try {
             this.loadedLeague(xml, content, {
@@ -557,6 +633,11 @@ var LeagueResultsUI = Class.extend({
         }
         if (content.children().length == 0)
             content.append($("<i></i>").text("No details are available for this league."));
+        if (typeof activeTab == "number" && activeTab > 0) {
+            var newTabs = content.find(".ui-tabs").first();
+            if (newTabs.length > 0 && activeTab < newTabs.find("> ul > li").length)
+                newTabs.tabs("option", "active", activeTab);
+        }
         return true;
     },
 
@@ -599,6 +680,22 @@ var LeagueResultsUI = Class.extend({
         if (this.listLoaded && this.listPending == null && reveal())
             return;
         this.loadList(reveal);
+    },
+
+    // options.onJoinError(leagueCode, message, status), if given, reports every failed join (the Play > League
+    // panel shows it inline); otherwise only "not enough funds" is reported, with an alert, as before.
+    joinErrorMap:function (leagueCode) {
+        var report = this.options.onJoinError;
+        if (typeof report != "function") {
+            return {
+                "409":function () {
+                    alert("You don't have enough funds to join this league.");
+                }
+            };
+        }
+        return EventDrawer.errorMap(function (message, status) {
+            report(leagueCode, status == 409 ? "You don't have enough funds to join this league." : message, status);
+        });
     },
 
     displayBuyAction:function (text, yesFunc) {

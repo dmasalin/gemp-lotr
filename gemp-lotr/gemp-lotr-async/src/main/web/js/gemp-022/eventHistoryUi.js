@@ -5,10 +5,11 @@
  *   new EventHistoryUI(hall.comm, $("#leagueHistory"), "league", leagueUI).show();
  *   new EventHistoryUI(hall.comm, $("#tournamentHistory"), "tournament", tourneyUI).show();
  *
- * The header mirrors the calendar's (.calendar-header): "<", the month title, ">", and a "Load" button in the place of
- * the calendar's "Today".  The title starts on the current UTC month and nothing is requested when the page loads.
- * Until "Load" is pressed the arrows and the month dropdown only change the title; "Load" fetches the titled month and
- * then hides itself for good, after which every arrow press / dropdown choice fetches straight away.
+ * The header mirrors the calendar's (.calendar-header): "<", the month title and ">".  show() builds the panel without
+ * requesting anything; start() then loads it by itself: it fetches the list of months with completed events and shows
+ * the newest of them (up to the current UTC month), or says there are none yet.  The Events tab calls start() once the
+ * live list above the panel has rendered, so the completed events never hold up the current ones.  From then on every
+ * arrow press / dropdown choice fetches straight away; one made before start() starts the panel on that month instead.
  *
  * Both the arrows and the dropdown work from the list of months the server reports as having completed events of this
  * kind (fetched once, on the first arrow press or dropdown opening): the arrows jump to the previous / next such
@@ -20,16 +21,190 @@
  *   comm.getEventHistory(month, kind)       -> {month, kind, isAdmin, events:[...]}
  *   comm.getLeague(id) / comm.getTournament(id) -> the XML the live displays render
  *
- * "Details" on a row expands a row beneath it and renders the league / tournament with the SAME renderer the live
+ * "+ Details" (first column, where the Current Leagues / Tournaments rows have theirs, and the same button) on a row
+ * expands a row beneath it and renders the league / tournament with the SAME renderer the live
  * display uses (LeagueResultsUI.loadedLeague into a target, TournamentResultsUI.loadedTournament), so a finished
  * league shows its full serie breakdown and results tabs and a finished tournament its standings with deck links.
  * The row slides open and shut (and eases to its new height when the fetched details replace the loading line); the
  * drawer mechanism is EventDrawer (eventDrawer.js), shared with the Current Leagues / Tournaments lists.
  *
+ * The header is a MonthNav (above), which Server Info › Patch Notes uses too.
+ *
  * Admin extras are gated only on the response's isAdmin flag (never hall.userInfo, which is filled in
  * asynchronously and does not exist on every page).  Every server-provided string in the table goes into the DOM
  * through .text()/.attr().
  */
+/**
+ * MonthNav: the month navigation of the completed-events panels (EventHistoryUI below), shared with Server Info ›
+ * Patch Notes (patchNotesUi.js).  "<", the month title and ">", in the calendar's header style (.calendar-header,
+ * .calendar-title; hall.css); the title is also the button that opens a dropdown of months grouped by year.  It only
+ * draws and reports: the host decides what the arrows and a chosen month do and which months there are.
+ *
+ *   var nav = new MonthNav({
+ *       prevTitle: "...", nextTitle: "...",   // the arrows' tooltips
+ *       onPrev: fn, onNext: fn,               // an arrow was pressed
+ *       onOpen: fn,                           // the dropdown opened: fill it with renderList (loading it if need be)
+ *       onClose: fn,                          // the dropdown closed
+ *       onPick: fn(key),                      // a month ("yyyy-MM") was chosen in the dropdown (already closed)
+ *       onRetry: fn                           // Retry in the dropdown's error state
+ *   });
+ *   container.append(nav.header);
+ *   nav.setTitle("March 2026"); nav.setDisabled(prevOff, nextOff);
+ *   nav.renderList("ready", months, currentKey, emptyText)   months: ["yyyy-MM", ...] as they should be listed
+ *   nav.renderList("loading") / nav.renderList("error", null, null, message)
+ *   nav.isOpen(), nav.open(), nav.close(), nav.toggle()
+ */
+var MonthNav = Class.extend({
+    options: null,
+    uid: 0,
+    openState: false,
+
+    header: null,
+    prevBut: null,
+    nextBut: null,
+    title: null,
+    titleText: null,
+    dropdown: null,
+
+    init: function (options) {
+        var that = this;
+        this.options = options || {};
+        this.uid = ++MonthNav.instances;
+
+        this.header = $("<div class='calendar-header event-history-header'></div>");
+        this.prevBut = $("<button type='button'>&lt;</button>").attr("title", this.options.prevTitle || "Previous month")
+            .button().click(function () { that.call("onPrev"); });
+        this.nextBut = $("<button type='button'>&gt;</button>").attr("title", this.options.nextTitle || "Next month")
+            .button().click(function () { that.call("onNext"); });
+
+        var titleWrap = $("<span class='event-history-title-wrap'></span>");
+        this.title = $("<span class='calendar-title event-history-month-title' role='button' tabindex='0'"
+            + " aria-haspopup='true' aria-expanded='false' title='Choose a month'></span>");
+        this.titleText = $("<span class='event-history-month-text'></span>");
+        this.title.append(this.titleText).append("<span class='event-history-caret' aria-hidden='true'>&#9662;</span>");
+        this.title.click(function () { that.toggle(); });
+        this.title.keydown(function (e) {
+            if (e.key == "Enter" || e.key == " ") {
+                e.preventDefault();
+                that.toggle();
+            }
+        });
+        this.dropdown = $("<div class='event-history-dropdown'></div>").hide();
+        titleWrap.append(this.title).append(this.dropdown);
+
+        this.header.append(this.prevBut).append(titleWrap).append(this.nextBut);
+    },
+
+    call: function (name, arg) {
+        if (typeof this.options[name] == "function")
+            this.options[name].call(this, arg);
+    },
+
+    setTitle: function (text) {
+        this.titleText.text(text);
+    },
+
+    setDisabled: function (prevOff, nextOff) {
+        this.prevBut.button("option", "disabled", !!prevOff);
+        this.nextBut.button("option", "disabled", !!nextOff);
+    },
+
+    isOpen: function () {
+        return this.openState;
+    },
+
+    toggle: function () {
+        if (this.openState)
+            this.close();
+        else
+            this.open();
+    },
+
+    open: function () {
+        var that = this;
+        this.openState = true;
+        this.title.attr("aria-expanded", "true").addClass("open");
+        this.dropdown.show();
+        var ns = ".monthNav" + this.uid;
+        $(document).on("mousedown" + ns, function (e) {
+            if ($(e.target).closest(that.title.parent()).length == 0)
+                that.close();
+        });
+        $(document).on("keydown" + ns, function (e) {
+            if (e.key == "Escape" || e.key == "Esc") {
+                that.close();
+                that.title.focus();
+            }
+        });
+        this.call("onOpen");
+    },
+
+    close: function () {
+        this.openState = false;
+        this.title.attr("aria-expanded", "false").removeClass("open");
+        this.dropdown.hide();
+        $(document).off(".monthNav" + this.uid);
+        this.call("onClose");
+    },
+
+    // state: "loading" | "error" (text: the reason) | "ready" (months as listed; current: the one to mark; text: what
+    // an empty list says)
+    renderList: function (state, months, current, text) {
+        var that = this;
+        var dd = this.dropdown;
+        dd.empty();
+
+        if (state == "loading") {
+            dd.append($("<div class='event-history-dd-status event-history-loading'></div>").text("Loading months…"));
+            return;
+        }
+        if (state == "error") {
+            dd.append($("<div class='event-history-dd-status event-history-error'></div>")
+                .text("Could not load the list of months. " + (text || "")));
+            dd.append($("<button type='button'>Retry</button>").button().click(function () {
+                that.call("onRetry");
+            }));
+            return;
+        }
+
+        months = months || [];
+        if (months.length == 0) {
+            dd.append($("<div class='event-history-dd-status event-history-empty'></div>").text(text || ""));
+            return;
+        }
+
+        var group = null, groupYear = null;
+        for (var i = 0; i < months.length; i++) {
+            var key = String(months[i]);
+            var year = key.split("-")[0];
+            if (year !== groupYear) {
+                groupYear = year;
+                var yearDiv = $("<div class='event-history-dd-year'></div>");
+                yearDiv.append($("<div class='event-history-dd-year-label'></div>").text(year));
+                group = $("<div class='event-history-dd-months'></div>");
+                yearDiv.append(group);
+                dd.append(yearDiv);
+            }
+            var item = $("<button type='button' class='event-history-dd-month'></button>")
+                .attr("data-month", key)
+                .attr("title", EventHistoryUI.monthLabel(key))
+                .text(EventHistoryUI.monthName(key));
+            if (key == current)
+                item.addClass("selected");
+            item.click((function (value) {
+                return function () {
+                    that.close();
+                    that.title.focus();
+                    that.call("onPick", value);
+                };
+            })(key));
+            group.append(item);
+        }
+    }
+});
+
+MonthNav.instances = 0;
+
 var EventHistoryUI = Class.extend({
     comm: null,
     container: null,
@@ -40,17 +215,19 @@ var EventHistoryUI = Class.extend({
 
     year: 0,               // the month in the title
     month: 0,              // 1-12
-    live: false,           // false until "Load" is pressed; afterwards navigation fetches immediately
+    live: false,           // false until start(); afterwards navigation fetches immediately
+    started: false,
+    touched: false,        // the viewer navigated before start(): start() shows their month, not the newest one
     requested: null,       // "yyyy-MM" most recently requested; responses for any other month are discarded
     monthsState: "idle",   // idle | loading | ready | error   (the months-with-events list)
     monthsError: null,
     monthsWaiting: null,   // callbacks queued on the in-flight months request; each gets the list, or null on failure
     dropdownOpen: false,
 
+    nav: null,             // the MonthNav: "<", the month title with its dropdown, ">"
     root: null,
     prevBut: null,
     nextBut: null,
-    loadBut: null,
     title: null,
     titleText: null,
     dropdown: null,
@@ -78,31 +255,32 @@ var EventHistoryUI = Class.extend({
         this.root.append($("<div class='event-history-heading'></div>")
             .text(this.kind == "league" ? "Completed leagues" : "Completed tournaments"));
 
-        var header = $("<div class='calendar-header event-history-header'></div>");
-        this.prevBut = $("<button type='button' title='Previous month with events'>&lt;</button>").button()
-            .click(function () { that.jump(-1); });
-        this.nextBut = $("<button type='button' title='Next month with events'>&gt;</button>").button()
-            .click(function () { that.jump(1); });
-        this.loadBut = $("<button type='button' class='event-history-load'>Load</button>").button()
-            .click(function () { that.firstLoad(); });
-
-        var titleWrap = $("<span class='event-history-title-wrap'></span>");
-        this.title = $("<span class='calendar-title event-history-month-title' role='button' tabindex='0'"
-            + " aria-haspopup='true' aria-expanded='false' title='Choose a month'></span>");
-        this.titleText = $("<span class='event-history-month-text'></span>");
-        this.title.append(this.titleText).append("<span class='event-history-caret' aria-hidden='true'>&#9662;</span>");
-        this.title.click(function () { that.toggleDropdown(); });
-        this.title.keydown(function (e) {
-            if (e.key == "Enter" || e.key == " ") {
-                e.preventDefault();
-                that.toggleDropdown();
+        this.nav = new MonthNav({
+            prevTitle: "Previous month with events",
+            nextTitle: "Next month with events",
+            onPrev: function () { that.jump(-1); },
+            onNext: function () { that.jump(1); },
+            onOpen: function () {
+                that.dropdownOpen = true;
+                if (EventHistoryUI.monthsCache[that.kind] != null)
+                    that.monthsState = "ready";
+                else
+                    that.loadMonths();
+                that.renderDropdown();
+            },
+            onClose: function () { that.dropdownOpen = false; },
+            onPick: function (key) { that.setMonth(key); },
+            onRetry: function () {
+                that.monthsState = "idle";
+                that.loadMonths();
             }
         });
-        this.dropdown = $("<div class='event-history-dropdown'></div>").hide();
-        titleWrap.append(this.title).append(this.dropdown);
-
-        header.append(this.prevBut).append(titleWrap).append(this.nextBut).append(this.loadBut);
-        this.root.append(header);
+        this.prevBut = this.nav.prevBut;
+        this.nextBut = this.nav.nextBut;
+        this.title = this.nav.title;
+        this.titleText = this.nav.titleText;
+        this.dropdown = this.nav.dropdown;
+        this.root.append(this.nav.header);
 
         this.status = $("<div class='event-history-status'></div>");
         this.root.append(this.status);
@@ -112,7 +290,36 @@ var EventHistoryUI = Class.extend({
         this.container.append(this.root);
 
         this.sync();
-        this.setStatus("Choose a month with the arrows or by clicking its name, then press Load. Nothing is loaded until you do.", "hint");
+        this.setStatus("Loading completed " + this.kindPlural() + "…", "loading");
+        return this;
+    },
+
+    // Loads the panel: the newest month with completed events (the months list is fetched first), or the month the
+    // viewer has already navigated to.  Runs once; later calls do nothing.
+    start: function () {
+        var that = this;
+        if (this.started)
+            return this;
+        this.started = true;
+        this.live = true;
+        if (this.touched) {
+            this.load();
+            return this;
+        }
+        this.loadMonths(function (list) {
+            if (that.touched)
+                return;   // the viewer navigated while the list was loading; that navigation has loaded their month
+            if (list == null) {
+                that.load();   // no list: show the month in the title (the current one)
+                return;
+            }
+            var newest = EventHistoryUI.newestMonth(list, EventHistoryUI.monthKey(that.year, that.month));
+            if (newest == null) {
+                that.setStatus("No completed " + that.kindPlural() + " have been recorded yet.", "empty");
+                return;
+            }
+            that.setMonth(newest, true);
+        });
         return this;
     },
 
@@ -156,7 +363,8 @@ var EventHistoryUI = Class.extend({
         this.navigated();
     },
 
-    setMonth: function (key) {
+    // auto: set by start() itself; any other call is the viewer navigating
+    setMonth: function (key, auto) {
         var parts = String(key).split("-");
         var year = parseInt(parts[0], 10);
         var month = parseInt(parts[1], 10);
@@ -164,17 +372,21 @@ var EventHistoryUI = Class.extend({
             return;
         this.year = year;
         this.month = month;
-        this.navigated();
+        this.navigated(auto);
     },
 
-    navigated: function () {
+    navigated: function (auto) {
+        if (!auto)
+            this.touched = true;
         this.sync();
         if (this.live)
             this.load();
+        else
+            this.start();
     },
 
     sync: function () {
-        this.titleText.text(EventHistoryUI.monthLabel(this.monthKey()));
+        this.nav.setTitle(EventHistoryUI.monthLabel(this.monthKey()));
         var months = EventHistoryUI.monthsCache[this.kind];
         var prevOff, nextOff;
         if (this.monthsState == "loading") {
@@ -187,55 +399,23 @@ var EventHistoryUI = Class.extend({
             prevOff = false;
             nextOff = this.isAtCurrentMonth();
         }
-        this.prevBut.button("option", "disabled", prevOff);
-        this.nextBut.button("option", "disabled", nextOff);
+        this.nav.setDisabled(prevOff, nextOff);
         if (this.dropdownOpen)
             this.renderDropdown();
-    },
-
-    firstLoad: function () {
-        this.live = true;
-        this.loadBut.hide();
-        this.load();
     },
 
     // ---- month dropdown ----
 
     toggleDropdown: function () {
-        if (this.dropdownOpen)
-            this.closeDropdown();
-        else
-            this.openDropdown();
+        this.nav.toggle();
     },
 
     openDropdown: function () {
-        var that = this;
-        this.dropdownOpen = true;
-        this.title.attr("aria-expanded", "true").addClass("open");
-        this.dropdown.show();
-        var ns = ".eventHistory" + this.uid;
-        $(document).on("mousedown" + ns, function (e) {
-            if ($(e.target).closest(that.title.parent()).length == 0)
-                that.closeDropdown();
-        });
-        $(document).on("keydown" + ns, function (e) {
-            if (e.key == "Escape" || e.key == "Esc") {
-                that.closeDropdown();
-                that.title.focus();
-            }
-        });
-        if (EventHistoryUI.monthsCache[this.kind] != null)
-            this.monthsState = "ready";
-        else
-            this.loadMonths();
-        this.renderDropdown();
+        this.nav.open();
     },
 
     closeDropdown: function () {
-        this.dropdownOpen = false;
-        this.title.attr("aria-expanded", "false").removeClass("open");
-        this.dropdown.hide();
-        $(document).off(".eventHistory" + this.uid);
+        this.nav.close();
     },
 
     // Fetches the months-with-events list (once; concurrent callers share the request).  `then`, if given, is called
@@ -282,59 +462,12 @@ var EventHistoryUI = Class.extend({
     },
 
     renderDropdown: function () {
-        var that = this;
-        var dd = this.dropdown;
-        dd.empty();
-
-        if (this.monthsState == "loading") {
-            dd.append($("<div class='event-history-dd-status event-history-loading'></div>").text("Loading months…"));
+        if (this.monthsState == "loading" || this.monthsState == "error") {
+            this.nav.renderList(this.monthsState, null, null, this.monthsError);
             return;
         }
-        if (this.monthsState == "error") {
-            dd.append($("<div class='event-history-dd-status event-history-error'></div>")
-                .text("Could not load the list of months. " + (this.monthsError || "")));
-            dd.append($("<button type='button'>Retry</button>").button().click(function () {
-                that.monthsState = "idle";
-                that.loadMonths();
-            }));
-            return;
-        }
-
-        var months = EventHistoryUI.monthsCache[this.kind] || [];
-        if (months.length == 0) {
-            dd.append($("<div class='event-history-dd-status event-history-empty'></div>")
-                .text("No completed " + this.kindPlural() + " have been recorded yet."));
-            return;
-        }
-
-        var current = this.monthKey();
-        var group = null, groupYear = null;
-        for (var i = 0; i < months.length; i++) {
-            var key = String(months[i]);
-            var year = key.split("-")[0];
-            if (year !== groupYear) {
-                groupYear = year;
-                var yearDiv = $("<div class='event-history-dd-year'></div>");
-                yearDiv.append($("<div class='event-history-dd-year-label'></div>").text(year));
-                group = $("<div class='event-history-dd-months'></div>");
-                yearDiv.append(group);
-                dd.append(yearDiv);
-            }
-            var item = $("<button type='button' class='event-history-dd-month'></button>")
-                .attr("data-month", key)
-                .attr("title", EventHistoryUI.monthLabel(key))
-                .text(EventHistoryUI.monthName(key));
-            if (key == current)
-                item.addClass("selected");
-            item.click((function (value) {
-                return function () {
-                    that.closeDropdown();
-                    that.title.focus();
-                    that.setMonth(value);
-                };
-            })(key));
-            group.append(item);
-        }
+        this.nav.renderList("ready", EventHistoryUI.monthsCache[this.kind] || [], this.monthKey(),
+            "No completed " + this.kindPlural() + " have been recorded yet.");
     },
 
     // ---- one month ----
@@ -386,9 +519,10 @@ var EventHistoryUI = Class.extend({
         this.setStatus(label + ": " + events.length + " completed "
             + (events.length == 1 ? this.kind : this.kindPlural()) + ".", "loaded");
 
+        // the details toggle comes first, as it does on the Current Leagues / Tournaments rows
         var columns = this.kind == "league"
-            ? ["Name", "Dates", "Format", "Players", ""]
-            : ["Name", "Date", "Format", "Players", "Rounds", ""];
+            ? ["", "Name", "Dates", "Format", "Players"]
+            : ["", "Name", "Date", "Format", "Players", "Rounds"];
         if (isAdmin)
             columns.push("Admin");
 
@@ -407,6 +541,10 @@ var EventHistoryUI = Class.extend({
 
     renderRow: function (event, isAdmin, columnCount) {
         var row = $("<tr class='event-history-row'></tr>");
+        var detailCell = $("<td class='event-history-detail-cell'></td>");
+        if (event.id != null)
+            detailCell.append(this.renderDetailsButton(row, String(event.id), columnCount));
+        row.append(detailCell);
         row.append($("<td class='event-history-name'></td>").text(EventHistoryUI.orDash(event.name)));
         if (this.kind == "league") {
             var start = EventHistoryUI.orDash(event.startDate);
@@ -420,11 +558,6 @@ var EventHistoryUI = Class.extend({
         if (this.kind == "tournament")
             row.append($("<td class='event-history-number'></td>").text(EventHistoryUI.orDash(event.rounds)));
 
-        var detailCell = $("<td class='event-history-detail-cell'></td>");
-        if (event.id != null)
-            detailCell.append(this.renderDetailsButton(row, String(event.id), columnCount));
-        row.append(detailCell);
-
         if (isAdmin)
             row.append(this.renderAdminCell(event));
         return row;
@@ -435,12 +568,11 @@ var EventHistoryUI = Class.extend({
     // next expansion.
     renderDetailsButton: function (row, id, columnCount) {
         var that = this;
-        var button = $("<button type='button' class='event-history-details' aria-expanded='false'>Details</button>").button();
+        var button = $("<button type='button' class='event-history-details' aria-expanded='false'></button>")
+            .addClass(EventDrawer.BUTTON_CLASS).text(EventDrawer.CLOSED_LABEL).button();
         var drawer = new EventDrawer({
             header: row,
             button: button,
-            closedLabel: "Details",
-            openLabel: "Hide details",
             slideClass: "event-history-detail-slide",
             paneClass: "event-history-detail",
             loadingClass: "event-history-loading",
@@ -616,6 +748,17 @@ EventHistoryUI.neighbourMonth = function (months, current, delta) {
             if (best == null || (delta < 0 ? key > best : key < best))
                 best = key;
         }
+    }
+    return best;
+};
+
+// The newest entry of `months` ("yyyy-MM", any order) that is not after `upTo`, or null if there is none.
+EventHistoryUI.newestMonth = function (months, upTo) {
+    var best = null;
+    for (var i = 0; i < months.length; i++) {
+        var key = String(months[i]);
+        if (key <= upTo && (best == null || key > best))
+            best = key;
     }
     return best;
 };

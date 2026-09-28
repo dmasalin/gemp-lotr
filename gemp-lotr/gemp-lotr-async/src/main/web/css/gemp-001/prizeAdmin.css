@@ -325,3 +325,32 @@
 .additems-result-skipped .additems-result-status { color: #ffe680; }
 .additems-result-error .additems-result-status { color: #e88; }
 /* ==== end t4-add-items ==== */
+
+/* ==== s4-admin: "Load from event" row - the event dropdown is clamped to the space the row has left, so a long
+   event name can no longer push the Load button past the panel edge; the name ellipsizes and the full text is in
+   the option / select title ==== */
+#additems-event {
+	flex: 1 1 0;
+	width: 0;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+#additems-event-load-button {
+	flex: none;
+	white-space: nowrap;
+}
+
+/* ==== r4-t4-admin: players loaded from an event - those with no games (always loaded last) are dimmed so the
+   admin can see where they start; a tournament player who dropped is in italics (the chip's title says why) ==== */
+.additems-chip-nogames {
+	border-color: #4a4a4a;
+	background: #2a2a2a;
+	color: #9a9a9a;
+}
+
+.additems-chip-dropped .additems-chip-name {
+	font-style: italic;
+}

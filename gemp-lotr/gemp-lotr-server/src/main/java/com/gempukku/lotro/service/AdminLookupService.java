@@ -1,6 +1,7 @@
 package com.gempukku.lotro.service;
 
 import com.gempukku.lotro.common.BlueprintUtils;
+import com.gempukku.lotro.competitive.PlayerStanding;
 import com.gempukku.lotro.db.PlayerDAO;
 import com.gempukku.lotro.game.CardCollection;
 import com.gempukku.lotro.game.CardNotFoundException;
@@ -14,6 +15,7 @@ import com.gempukku.lotro.packs.RandomFoilPack;
 import com.gempukku.lotro.packs.WeightedRandomPack;
 
 import java.text.Normalizer;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -80,6 +82,159 @@ public class AdminLookupService {
      */
     public record ItemCheck(String line, int count, String value, ItemKind kind, String name, String problem) {
     }
+
+    // ---- t4-admin-load-from-event: "load participants from a recent event" on the add-items form ----
+
+    public enum EventKind {LEAGUE, TOURNAMENT}
+
+    /**
+     * One league or tournament the admin can load participants from: currently running, finished within the recent
+     * window the caller asked for, or not started yet but with players signed up (see {@link #eventTiming}).
+     *
+     * @param kind        league or tournament
+     * @param id          the league code (as a string) or the tournament id
+     * @param name        display name
+     * @param start       ISO-8601 date/time the event started, or null when unknown
+     * @param end         ISO-8601 date/time it ended (or will), or null: still running, or (for a tournament) no
+     *                    finish date is recorded at all (see EventHistoryService)
+     * @param status      a short admin-facing label ({@link #EVENT_RUNNING} / {@link #EVENT_FINISHED} /
+     *                    {@link #EVENT_UPCOMING} for a league; a tournament's admin status)
+     * @param running     true while the event has started and not finished
+     * @param playerCount how many players have signed up, or null when not counted (the event list counts only the
+     *                    events that have not started, to leave out those nobody signed up for)
+     */
+    public record EventEntry(EventKind kind, String id, String name, String start, String end, String status,
+                              boolean running, Integer playerCount) {
+    }
+
+    /**
+     * One participant of an event, as the add-items form receives them.
+     *
+     * @param name        player name
+     * @param standing    their place in the event's standings (players who tie share a place), or null when they
+     *                    have none: the event has no standings (a scheduled tournament that has not started, whose
+     *                    sign-ups wait in its queue) or they are missing from them
+     * @param gamesPlayed games played as the standings count them (a bye counts as one); 0 without standings
+     * @param dropped     a tournament player who dropped (the standings keep them, in their place)
+     */
+    public record EventParticipant(String name, Integer standing, int gamesPlayed, boolean dropped) {
+    }
+
+    /**
+     * Newest first: an event still running sorts before a finished one; within each group, the more recently
+     * started event first (no start date last).
+     */
+    public static final Comparator<EventEntry> EVENT_ORDER = Comparator
+            .comparing(EventEntry::running).reversed()
+            .thenComparing(EventEntry::start, Comparator.nullsLast(Comparator.reverseOrder()));
+
+    /**
+     * When an event is, relative to {@code now}: {@link #EVENT_UPCOMING} before its start, {@link #EVENT_FINISHED}
+     * after its end, {@link #EVENT_RUNNING} otherwise (also when either date is unknown).
+     * <p>
+     * The add-items event list uses this for leagues: {@code LeagueService.getActiveLeagues()} is every league whose
+     * {@code end_date} has not passed, which includes the ones that have not started yet (the league scheduler
+     * creates them days ahead).  Those are listed as upcoming, and only when someone has signed up.
+     */
+    public static String eventTiming(ZonedDateTime start, ZonedDateTime end, ZonedDateTime now) {
+        if (start != null && now.isBefore(start))
+            return EVENT_UPCOMING;
+        if (end != null && now.isAfter(end))
+            return EVENT_FINISHED;
+        return EVENT_RUNNING;
+    }
+
+    public static final String EVENT_UPCOMING = "upcoming";
+    public static final String EVENT_RUNNING = "running";
+    public static final String EVENT_FINISHED = "finished";
+
+    /** The participants are in standings order (at least one of them has played a game). */
+    public static final String ORDER_STANDINGS = "standings";
+    /** Nobody has played a game yet (or the event has no standings): the order is by name. */
+    public static final String ORDER_NAME = "name";
+
+    /**
+     * The order the add-items form loads an event's players in: the event's standings, place ascending, the same
+     * order its event page shows.  Players who share a place (the event pages leave them in no particular order):
+     * those who have played a game first, then by name, case-insensitively.  So players with 0 games end up last
+     * (both standings producers rank anyone who has played at least level with them; see
+     * {@link #participantsInStandingsOrder}), and an event nobody has played in yet (everyone tied in first place)
+     * comes out alphabetical.  Players with no place come after everyone who has one, by name.
+     */
+    public static final Comparator<EventParticipant> PARTICIPANT_ORDER = Comparator
+            .comparing(EventParticipant::standing, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparing(p -> p.gamesPlayed() > 0 ? 0 : 1)
+            .thenComparing(EventParticipant::name, String.CASE_INSENSITIVE_ORDER)
+            .thenComparing(EventParticipant::name);
+
+    /**
+     * Every participant of an event, in {@link #PARTICIPANT_ORDER}: everyone in {@code participants} (the signed-up
+     * players of a league, the registered players of a tournament including those who dropped, or the sign-ups of a
+     * tournament queue) and everyone in {@code standings}, each once.
+     * <p>
+     * {@code standings} is what the event's own page shows ({@code LeagueService.getLeagueStandings}, i.e.
+     * {@code BestOfOneStandingsProducer}, or {@code Tournament.getCurrentStandings}, i.e.
+     * {@code ModifiedMedianStandingsProducer}), in any order: the league producer returns them unsorted.  In a league a
+     * loss is worth a point, so anyone who has played outranks everyone who has not; in a tournament a loss is worth
+     * nothing, so a player with 0 games can at most tie with players who lost every game, and the tie-break puts them
+     * after those.  null when the event has none.
+     *
+     * @param dropped tournament players who dropped, or null
+     */
+    public static List<EventParticipant> participantsInStandingsOrder(Collection<String> participants,
+                                                                      Collection<PlayerStanding> standings,
+                                                                      Collection<String> dropped) {
+        Map<String, EventParticipant> byName = new LinkedHashMap<>();
+        if (standings != null) {
+            for (PlayerStanding standing : standings) {
+                if (standing == null || standing.playerName == null || byName.containsKey(standing.playerName))
+                    continue;
+                byName.put(standing.playerName, new EventParticipant(standing.playerName, standing.standing,
+                        standing.gamesPlayed, dropped != null && dropped.contains(standing.playerName)));
+            }
+        }
+        if (participants != null) {
+            for (String player : participants) {
+                if (player == null || player.isBlank() || byName.containsKey(player))
+                    continue;
+                byName.put(player, new EventParticipant(player, null, 0, dropped != null && dropped.contains(player)));
+            }
+        }
+        List<EventParticipant> result = new ArrayList<>(byName.values());
+        result.sort(PARTICIPANT_ORDER);
+        return result;
+    }
+
+    /**
+     * The body of GET /admin/addItemsEventParticipants, exactly as the add-items form reads it:
+     * {@code {kind, id, name, order, players:[{name, standing, gamesPlayed, dropped}]}}, players in the order given
+     * (see {@link #participantsInStandingsOrder}); {@code order} is {@link #ORDER_STANDINGS} when at least one of them
+     * has played a game, else {@link #ORDER_NAME}.
+     */
+    public static Map<String, Object> participantsResponse(String kind, String id, String name, List<EventParticipant> players) {
+        var list = new ArrayList<Map<String, Object>>();
+        boolean anyGames = false;
+        if (players != null) {
+            for (var p : players) {
+                var o = new LinkedHashMap<String, Object>();
+                o.put("name", p.name());
+                o.put("standing", p.standing());
+                o.put("gamesPlayed", p.gamesPlayed());
+                o.put("dropped", p.dropped());
+                list.add(o);
+                anyGames |= p.gamesPlayed() > 0;
+            }
+        }
+        var result = new LinkedHashMap<String, Object>();
+        result.put("kind", kind);
+        result.put("id", id);
+        result.put("name", name);
+        result.put("order", anyGames ? ORDER_STANDINGS : ORDER_NAME);
+        result.put("players", list);
+        return result;
+    }
+
+    // ---- end t4-admin-load-from-event ----
 
     private final LotroCardBlueprintLibrary _cardLibrary;
     private final ProductLibrary _productLibrary;

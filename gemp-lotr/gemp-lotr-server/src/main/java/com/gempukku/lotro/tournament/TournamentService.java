@@ -12,6 +12,7 @@ import com.gempukku.lotro.draft3.TableDraftDefinitions;
 import com.gempukku.lotro.game.LotroCardBlueprintLibrary;
 import com.gempukku.lotro.game.Player;
 import com.gempukku.lotro.game.formats.LotroFormatLibrary;
+import com.gempukku.lotro.hall.HallException;
 import com.gempukku.lotro.hall.HallInfoVisitor;
 import com.gempukku.lotro.hall.HallServer;
 import com.gempukku.lotro.hall.TableHolder;
@@ -339,7 +340,7 @@ public class TournamentService {
         return true;
     }
 
-    public boolean addPlayerMadeQueue(TournamentInfo info, Player player, LotroDeck lotroDeck, boolean startableEarly, int readyCheckTimeSecs) throws SQLException, IOException {
+    public boolean addPlayerMadeQueue(TournamentInfo info, Player player, LotroDeck lotroDeck, boolean startableEarly, int readyCheckTimeSecs) throws SQLException, IOException, HallException {
         if (_tournamentQueues.containsKey(info._params.tournamentId))
             return false;
 
@@ -348,10 +349,16 @@ public class TournamentService {
                 tournament -> _activeTournaments.put(tournament.getTournamentId(), tournament), _collectionsManager);
         _tournamentQueues.put(info._params.tournamentId, tournamentQueue);
 
-        if (info._params.requiresDeck) {
-            tournamentQueue.joinPlayer(player, lotroDeck);
-        } else {
-            tournamentQueue.joinPlayer(player);
+        try {
+            if (info._params.requiresDeck) {
+                tournamentQueue.joinPlayer(player, lotroDeck);
+            } else {
+                tournamentQueue.joinPlayer(player);
+            }
+        } catch (HallException creatorCouldNotJoin) {
+            // a queue its creator could not join would sit in the hall empty
+            _tournamentQueues.remove(info._params.tournamentId);
+            throw creatorCouldNotJoin;
         }
 
         return true;

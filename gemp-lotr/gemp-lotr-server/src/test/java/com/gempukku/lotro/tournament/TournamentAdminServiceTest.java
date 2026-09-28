@@ -1,5 +1,6 @@
 package com.gempukku.lotro.tournament;
 
+import com.gempukku.lotro.hall.HallException;
 import com.gempukku.lotro.collection.CollectionsManager;
 import com.gempukku.lotro.common.DBDefs;
 import com.gempukku.lotro.common.DateUtils;
@@ -284,7 +285,12 @@ public class TournamentAdminServiceTest {
         var queue = scheduleWithQueue("cup", inMinutes(30));
         assertTrue(queue.retireIfEmpty());
 
-        queue.joinPlayer(player("late"), new LotroDeck("late"));
+        try {
+            queue.joinPlayer(player("late"), new LotroDeck("late"));
+            fail("a retired queue must refuse the join");
+        } catch (HallException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("changed by an administrator"));
+        }
 
         assertEquals(0, queue.getPlayerCount());
         assertFalse("a finished report would make processTournamentQueues remove the replacement by id", queue.process());

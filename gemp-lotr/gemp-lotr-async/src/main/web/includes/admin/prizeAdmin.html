@@ -62,7 +62,7 @@ $(document).ready(
 					outputControl.html("404: Info not found.  Check that your input is correct with removed whitespace and try again.");
 				},
 				"410": function() {
-					outputControl.html("410: You have been inactive for too long and were loggedout. Refresh the page if you wish to re-stablish connection.");
+					outputControl.html("410: You have been inactive for too long and were logged out. Refresh the page if you wish to re-establish connection.");
 				},
 				"500": function() {
 					outputControl.html("500: Server error. One of the provided parameters was probably malformed.  Double-check your input and try again.");
@@ -283,6 +283,21 @@ $(document).ready(
 			</div>
 			<div id="additems-admin-only" class="page-hint" hidden>Only full admins can add items to collections.</div>
 			<div id="additems-form">
+				<div class="flex-horiz field-row">
+					<div class="label-column">Load from event <span class="info-toggle" data-for="help-additems-event">i</span></div>
+					<select id="additems-event" class="flex-fill"></select>
+					<button type="button" id="additems-event-load-button">Load</button>
+				</div>
+				<div id="help-additems-event" class="info-text" hidden>
+					Picks a league or tournament (running, finished in the last 120 days, or not started yet but with players
+					signed up) and adds all of its players to the Players list below, whether they have played or not: every
+					player signed up for a league; every player registered in a tournament, including those who dropped (a
+					tournament that has not started: everyone signed up for it). They are added in the order of the event's
+					standings, so players with no games come last (dimmed; hover a chip for its place and games). When nobody
+					has played yet, they are added alphabetically. Names already in the list are left alone. Remove anyone
+					who should not get the award with the &times; on their chip.
+				</div>
+
 				<div class="flex-horiz field-row">
 					<div class="label-column">Players <span class="info-toggle" data-for="help-additems-players">i</span></div>
 					<div id="additems-player-box" class="additems-chip-box flex-fill">

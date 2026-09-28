@@ -4,12 +4,14 @@
  *   new TournamentResultsUI(url)                    // legacy: list in $("#tournamentResults"), details expand under
  *                                                   // each entry (Server Info's tournament page)
  *   new TournamentResultsUI(url, {list: $container})
- *       // list mode (the Events tab): every live tournament is a header row ([See details] name ...... start date)
+ *       // list mode (the Events tab): every live tournament is a header row ([+ Details] name ...... start date)
  *       // with its own drawer underneath (eventDrawer.js).  Options:
  *       //   list:     container for the rows (required for list mode)
  *       //   autoLoad: false = do not fetch the list from the constructor (default true)
  *
  * createTournamentRow(tournament, options) builds one row + drawer; the calendar preview (calendarUi.js) uses it too.
+ *
+ * refreshList() (list mode) re-fetches the list and updates it in place, as LeagueResultsUI.refreshList does.
  */
 var TournamentResultsUI = Class.extend({
     communication:null,
@@ -159,7 +161,8 @@ var TournamentResultsUI = Class.extend({
 
     // ---- list mode (the Events tab's Current Tournaments): one header row + drawer per tournament ----
 
-    // Fetches and renders the list.  Concurrent callers share one request; each `then` runs after the render.
+    // Fetches and renders the list.  Concurrent callers share one request; each `then` runs after the render (or,
+    // when the request fails, after the error is shown).
     loadList:function (then) {
         var that = this;
         if (this.listPending != null) {
@@ -177,10 +180,65 @@ var TournamentResultsUI = Class.extend({
                     waiting[i]();
             },
             EventDrawer.errorMap(function (message) {
+                var waiting = that.listPending || [];
                 that.listPending = null;
                 that.list.empty().append($("<div class='event-drawer-error'></div>")
                     .text("Could not load the current tournaments. " + message));
+                for (var i = 0; i < waiting.length; i++)
+                    waiting[i]();
             }));
+    },
+
+    // Re-fetches the list and updates it in place: open drawers are re-rendered where they are, shut ones re-fetch
+    // when next opened.  A failed refresh keeps what is shown.
+    refreshList:function () {
+        var that = this;
+        if (this.list == null)
+            return;
+        if (!this.listLoaded) {
+            this.loadList();
+            return;
+        }
+        if (this.listPending != null)
+            return;
+        this.listPending = [];
+        this.communication.getLiveTournaments(
+            function (xml) {
+                var waiting = that.listPending || [];
+                that.listPending = null;
+                that.updateTournamentRows(xml.documentElement);
+                for (var i = 0; i < waiting.length; i++)
+                    waiting[i]();
+            },
+            EventDrawer.errorMap(function () {
+                var waiting = that.listPending || [];
+                that.listPending = null;
+                for (var i = 0; i < waiting.length; i++)
+                    waiting[i]();
+            }));
+    },
+
+    updateTournamentRows:function (root) {
+        var that = this;
+        if (root == null || root.tagName != 'tournaments')
+            return;
+        var tournaments = root.getElementsByTagName("tournament");
+        var data = [];
+        for (var i = 0; i < tournaments.length; i++) {
+            data.push({
+                id: tournaments[i].getAttribute("id"),
+                name: tournaments[i].getAttribute("name"),
+                start: tournaments[i].getAttribute("start")
+            });
+        }
+        this.rows = EventDrawer.updateRows(this.list, this.rows, data, {
+            key: function (tournament) { return tournament.id; },
+            create: function (tournament) { return that.createTournamentRow(tournament); },
+            title: function (tournament) { return tournament.name; },
+            date: function (tournament) { return tournament.start; },
+            emptyText: "There are no running tournaments at the moment."
+        });
+        this.listLoaded = true;
     },
 
     renderTournamentRows:function (root) {
@@ -208,7 +266,7 @@ var TournamentResultsUI = Class.extend({
     // One tournament's header row and drawer.
     //   tournament: {id, name, start}      (start: the date shown on the right)
     //   options: {
-    //       action:   undefined = the See details / Hide details toggle; {label, click} = a fixed button (the
+    //       action:   undefined = the + Details / - Details toggle; {label, click} = a fixed button (the
     //                 calendar's "Go to Tournament")
     //       open:     true = born open
     //       fetch:    false = do not ask the server (a scheduled tournament that has not started); the fallback is
@@ -238,7 +296,7 @@ var TournamentResultsUI = Class.extend({
             kind: "tournament",
             title: tournament.name,
             date: tournament.start,
-            dateTitle: "Server time (UTC / GMT+0)",
+            dateTitle: "Server time (UTC)",
             extras: extras,
             action: options.action,
             open: options.open,
