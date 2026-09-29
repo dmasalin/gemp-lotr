@@ -304,6 +304,24 @@ const packBlueprints = {
     "Move Limit - Gondor Starter": "/gemp-lotr/images/boosters/gala_2026/Move_Limit_Sealed-Gondor-Evil_Men.PNG",
     "Move Limit - Rohan Starter": "/gemp-lotr/images/boosters/gala_2026/Move_Limit_Sealed-Rohan-Sauron.PNG",
     "Move Limit - Smeagol Starter": "/gemp-lotr/images/boosters/gala_2026/Move_Limit_Sealed-Smeagol-Gollum.PNG",
+
+    "(S)Alphabet DEGR - Starter": "/gemp-lotr/images/boosters/starter_selection.png",
+    "Alphabet DEGR - DDD Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_DEGR_Sealed-DDD.PNG",
+    "Alphabet DEGR - EEE Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_DEGR_Sealed-EEE.PNG",
+    "Alphabet DEGR - GGG Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_DEGR_Sealed-GGG.PNG",
+    "Alphabet DEGR - RRR Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_DEGR_Sealed-RRR.PNG",
+
+    "(S)Alphabet AHST - Starter": "/gemp-lotr/images/boosters/starter_selection.png",
+    "Alphabet AHST - AAA Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_AHST_Sealed-AAA.PNG",
+    "Alphabet AHST - HHH Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_AHST_Sealed-HHH.PNG",
+    "Alphabet AHST - SSS Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_AHST_Sealed-SSS.PNG",
+    "Alphabet AHST - TTT Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_AHST_Sealed-TTT.PNG",
+
+    "(S)Alphabet BFLW - Starter": "/gemp-lotr/images/boosters/starter_selection.png",
+    "Alphabet BFLW - BBB Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_BFLW_Sealed-BBB.PNG",
+    "Alphabet BFLW - FFF Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_BFLW_Sealed-FFF.PNG",
+    "Alphabet BFLW - LLL Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_BFLW_Sealed-LLL.PNG",
+    "Alphabet BFLW - WWW Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_BFLW_Sealed-WWW.PNG",
         
     "Fellowship Site Pack": "/gemp-lotr/images/boosters/gala_2025/fellowship-site-pack.jpg",
     "Towers Site Pack": "/gemp-lotr/images/boosters/gala_2025/towers-site-pack.jpg",
