@@ -105,6 +105,23 @@ public class ErrataCatalogTest extends AbstractAtTest {
     }
 
     @Test
+    public void theWraithCultureIsLabelledRingwraith() {
+        assertEquals("Ringwraith", ErrataCatalog.cultureLabel(com.gempukku.lotro.common.Culture.WRAITH));
+        assertEquals("Dwarven", ErrataCatalog.cultureLabel(com.gempukku.lotro.common.Culture.DWARVEN));
+
+        var catalog = ErrataCatalog.build(_cardLibrary, _formatLibrary);
+        int wraith = 0;
+        for (var e : entries(catalog)) {
+            assertNotEquals(e.get("id") + " culture", "Wraith", e.get("culture"));
+            if ("wraith".equals(e.get("cultureCode"))) {
+                assertEquals(e.get("id") + " culture", "Ringwraith", e.get("culture"));
+                wraith++;
+            }
+        }
+        assertTrue("the library has errata'd Ringwraith cards", wraith > 0);
+    }
+
+    @Test
     public void formatsAreWhereTheErrataIsInEffect() {
         var catalog = ErrataCatalog.build(_cardLibrary, _formatLibrary);
         var hall = _formatLibrary.getHallFormats();

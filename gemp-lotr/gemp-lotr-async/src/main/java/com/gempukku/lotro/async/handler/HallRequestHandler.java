@@ -830,6 +830,13 @@ public class HallRequestHandler extends LotroServerRequestHandler implements Uri
         }
 
         @Override
+        public void shutdownMode(boolean shutdown) {
+            // on every hall answer while it lasts (absent otherwise): the connection readout turns yellow "Shutdown"
+            if (shutdown)
+                _hall.setAttribute("shutdown", "true");
+        }
+
+        @Override
         public void addTournamentQueue(String queueId, Map<String, String> props) {
             Element queue = _doc.createElement("queue");
             queue.setAttribute("action", "add");

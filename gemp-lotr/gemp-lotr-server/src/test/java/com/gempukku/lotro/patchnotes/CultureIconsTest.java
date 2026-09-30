@@ -159,6 +159,88 @@ public class CultureIconsTest {
         assertTrue(icon.parent().text(), icon.parent().text().contains("adding a token needs 25 twilight tokens"));
     }
 
+    // ---- twilight icons ----
+
+    @Test
+    public void twilightCostsInBothSyntaxes() {
+        Document doc = render("Remove (1) to add (X); :3twilight:, :0TWILIGHT: and :xTwilight: (9).");
+        assertEquals(List.of("(1) twilight", "(X) twilight", "(3) twilight", "(0) twilight", "(X) twilight", "(9) twilight"),
+                icons(doc));
+        assertEquals("<p>Remove <img class=\"patchnote-culture\" src=\"images/cultures/twilight_1.svg\" alt=\"(1) twilight\""
+                        + " title=\"(1) twilight\"> to play</p>",
+                _renderer.render("Remove (1) to play").trim());
+        assertEquals("images/cultures/twilight_x.svg", render("(X)").selectFirst("img").attr("src"));
+    }
+
+    @Test
+    public void twilightLookalikesStayText() {
+        String text = "(x) lower case, (10), (2023), (25) twilight, f(1), (1)st, (Y), :10twilight: and :ytwilight: and :1twilights:";
+        Document doc = render(text);
+        assertTrue(doc.html(), icons(doc).isEmpty());
+        assertEquals(text, doc.select("p").text());
+    }
+
+    @Test
+    public void twilightNotInCodeCardLinksLinkTextOrUrls() {
+        String markdown = """
+                `(1)` and `:2twilight:`
+
+                [[Isengard Warrior|costs (1)]] and [(3)](#pc-errata) and [x](4) and ![(5)](img/a.png)
+
+                https://example.org/(6)/x and <https://x.org/(7)>
+                """;
+        Document doc = render(markdown);
+        assertTrue(doc.html(), icons(doc).isEmpty());
+        assertEquals("(1)", doc.select("code").first().text());
+        assertEquals("costs (1)", doc.select("span.patchnote-card").text());
+        assertEquals("(3)", doc.select("a[href=#pc-errata]").text());
+    }
+
+    @Test
+    public void twilightAndCultureTokensTogether() {
+        assertEquals(List.of("Orc", "(2) twilight", "Isengard"),
+                icons(render("Each :orc: minion costs (2) more, [isengard] too.")));
+    }
+
+    @Test
+    public void everyTwilightIconExistsAndHandWrittenMarkersAreNotIcons() {
+        assertEquals(11, CultureIcons.TWILIGHT.size());
+        if (WEB.isDirectory()) {
+            for (CultureIcons.Icon icon : CultureIcons.TWILIGHT.values())
+                assertTrue(icon.src(), new File(WEB, icon.src()).isFile());
+        }
+        assertEquals("(4) twilight", CultureIcons.byCode("twilight_4").name());
+        assertNull(CultureIcons.byCode("twilight_X"));
+        assertNull(CultureIcons.byCode("twilight_10"));
+        assertEquals("Isengard", CultureIcons.byCode("isengard").name());
+        // no :name: or [name] spelling reaches a twilight icon
+        assertNull(CultureIcons.icon("twilight_1"));
+        assertTrue(icons(render(":twilight_x: [twilight_x] <span data-culture=\"twilight_1\">t</span>")).isEmpty());
+    }
+
+    @Test
+    public void theSummaryAndSharePreviewGetTwilightToo() {
+        PatchNote note = new PatchNote("2026-09-27", LocalDate.of(2026, 9, 27), "T", "Remove (1) & draw", 0, "x");
+        assertEquals("Remove <img class=\"patchnote-culture\" src=\"images/cultures/twilight_1.svg\" alt=\"(1) twilight\""
+                + " title=\"(1) twilight\"> &amp; draw", note.toJson(_renderer).get("summaryHtml"));
+        assertEquals("Remove (1) twilight & draw", CultureIcons.plainText("Remove (1) & draw"));
+    }
+
+    @Test
+    public void thePopupShowsTwilightIcons() {
+        String summary = _announcer.summaryForAnnouncement("Remove (1) and add :xtwilight:, not (10)");
+        assertEquals("Remove ![(1) twilight](/gemp-lotr/images/cultures/twilight_1.svg \"(1) twilight\") and add "
+                + "![(X) twilight](/gemp-lotr/images/cultures/twilight_x.svg \"(X) twilight\"), not (10)", summary);
+        String html = new MarkdownParser().renderMarkdown(summary, false);
+        assertTrue(html, html.contains("<img src=\"/gemp-lotr/images/cultures/twilight_1.svg\" alt=\"(1) twilight\" title=\"(1) twilight\" />"));
+        assertTrue(html, html.contains("<img src=\"/gemp-lotr/images/cultures/twilight_x.svg\" alt=\"(X) twilight\" title=\"(X) twilight\" />"));
+
+        String paragraph = _announcer.paragraphForAnnouncement(
+                "- Now removes (1), not `(2)`, [[Isengard Warrior|(3) guy]], [(4)](#x) or https://x.org/(5)");
+        assertEquals("- Now removes ![(1) twilight](/gemp-lotr/images/cultures/twilight_1.svg \"(1) twilight\"), not `(2)`, "
+                + "(3) guy, [(4)](#x) or https://x.org/(5)", paragraph);
+    }
+
     // ---- the popup ----
 
     private final PatchNoteAnnouncer _announcer = new PatchNoteAnnouncer(null, null, null);

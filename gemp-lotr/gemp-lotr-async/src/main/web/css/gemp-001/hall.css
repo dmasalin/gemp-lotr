@@ -954,6 +954,11 @@ table.standings {
 	vertical-align: -0.22em;
 }
 
+/* a twilight icon there ((1), CultureIcons): drawn in black, so turned white for the dark popup */
+#announcement-dialog img[src*="/images/cultures/twilight_"] {
+	filter: invert(1);
+}
+
 #announcement-dialog h1, 
 #announcement-dialog h2,
 #announcement-dialog ul {
@@ -1910,7 +1915,7 @@ td a.hall-row-link {
 	width: 9px;
 	height: 9px;
 	border-radius: 50%;
-	background-color: #e0c030;
+	background-color: #f08c28;
 	box-shadow: 0 0 0 1px #00000066;
 }
 
@@ -1918,9 +1923,19 @@ td a.hall-row-link {
 	background-color: #3fbf5f;
 }
 
+/* amber (orange): a connection problem the hall is retrying; yellow is kept for shutdown mode */
 .hall-connection[data-state="reconnecting"] .hall-connection-dot,
 .hall-connection[data-state="connecting"] .hall-connection-dot {
-	background-color: #e0c030;
+	background-color: #f08c28;
+}
+
+/* shutdown mode: connected, but the server will restart soon and new games can't be started */
+.hall-connection[data-state="shutdown"] .hall-connection-dot {
+	background-color: #f5e030;
+}
+
+.hall-connection[data-state="shutdown"] .hall-connection-label {
+	color: #f5e36a;
 }
 
 .hall-connection[data-state="disconnected"] .hall-connection-dot {

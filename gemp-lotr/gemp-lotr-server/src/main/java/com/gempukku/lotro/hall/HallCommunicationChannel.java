@@ -83,6 +83,11 @@ public class HallCommunicationChannel implements LongPollableResource {
                     }
 
                     @Override
+                    public void shutdownMode(boolean shutdown) {
+                        hallChannelVisitor.shutdownMode(shutdown);
+                    }
+
+                    @Override
                     public void visitTable(String tableId, String gameId, boolean watchable, TableStatus status, String statusDescription,
                                            String formatName, String tournamentName, String userDesc, List<String> playerIds, boolean playing,
                                            boolean isPrivate, boolean isInviteOnly, String winner,

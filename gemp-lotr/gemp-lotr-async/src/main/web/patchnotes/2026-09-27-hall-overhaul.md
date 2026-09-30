@@ -57,7 +57,7 @@ tags: Card Fixes, User Interface
 - **[[Morgul Regiment]]** (7R197), **[[Morgul Spawn]]** (7C200) and **[[Morgul Spearman]]** (7C201): exerting to assign one of them no longer lets you assign all of them. ([#1090](https://github.com/PlayersCouncil/gemp-lotr/issues/1090))
 - **[[Rivendell Waterfall]]** (1U342): no longer raises the move limit more than once per turn. The same fix applies to other once-per-turn effects, such as [[Bree Gate]], [[Horse-country]], [[Derndingle]], [[Steps of Edoras]] and [[Traitor's Voice]]. ([#1091](https://github.com/PlayersCouncil/gemp-lotr/issues/1091))
 - **[[51_25|Still Draws Breath]]** errata: fixed it not having the Tale keyword
-- **[[Haldir, Naith Commander]]: fixed Haldir only protecting ranged weapons and not all Elven possessions.
+- **[[Haldir, Naith Commander]]**: fixed Haldir only protecting ranged weapons and not all Elven possessions.
 - **RTMD:** the Mount Doom modifier [[93_4]] now wounds your characters in either role, not only when you are the Free Peoples player. ([#1099](https://github.com/PlayersCouncil/gemp-lotr/issues/1099))
 - **RTMD:** the newest modifiers now show their card art and no longer display "null". ([#1094](https://github.com/PlayersCouncil/gemp-lotr/issues/1094), [#1096](https://github.com/PlayersCouncil/gemp-lotr/issues/1096))
 - **RTMD:** a revealed hand can now be viewed by spectators and by its owner. ([#1095](https://github.com/PlayersCouncil/gemp-lotr/issues/1095))

@@ -262,6 +262,8 @@ public class HallServer extends AbstractServer {
                 hallChanged();
             } else if (cancelMessage) {
                 _chatServer.sendSystemMessageToAllChatRooms("@everyone Shutdown mode canceled; games may now resume.");
+                // the hall's connection readout shows shutdown mode, so it has to hear that it is over too
+                hallChanged();
             }
         } finally {
             _hallDataAccessLock.writeLock().unlock();
@@ -753,6 +755,7 @@ public class HallServer extends AbstractServer {
             visitor.serverTime(DateUtils.getStringDateWithHour());
             if (_motd != null)
                 visitor.motd(_motd);
+            visitor.shutdownMode(_shutdown);
 
             tableHolder.processTables(isAdmin, player, visitor);
             _tournamentService.processTournamentsForHall(_formatLibrary, player, visitor);

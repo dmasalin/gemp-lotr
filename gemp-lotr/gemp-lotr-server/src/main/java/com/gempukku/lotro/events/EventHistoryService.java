@@ -68,6 +68,12 @@ public class EventHistoryService implements Cached {
     private final Map<String, List<EventSummary>> _months = new ConcurrentHashMap<>();
     /** Keyed by kind: the months holding at least one completed event of that kind, newest first. */
     private final Map<String, List<String>> _availableMonths = new ConcurrentHashMap<>();
+    /**
+     * When each "live" entry was cached: the month lists, and the current month's events.  Those change as events
+     * finish, so they are re-read after {@link #LIVE_TTL_MS}; a month that is over never changes and is kept.
+     */
+    private final Map<String, Long> _liveCachedAt = new ConcurrentHashMap<>();
+    static final long LIVE_TTL_MS = 5 * 60 * 1000L;
 
     public EventHistoryService(LeagueDAO leagueDao, TournamentDAO tournamentDao, ProductLibrary productLibrary,
                                LotroFormatLibrary formatLibrary, SoloDraftDefinitions soloDraftDefinitions) {
@@ -82,6 +88,12 @@ public class EventHistoryService implements Cached {
     public void clearCache() {
         _months.clear();
         _availableMonths.clear();
+        _liveCachedAt.clear();
+    }
+
+    private boolean isFresh(String liveKey) {
+        Long at = _liveCachedAt.get(liveKey);
+        return at != null && System.currentTimeMillis() - at < LIVE_TTL_MS;
     }
 
     @Override
@@ -116,14 +128,15 @@ public class EventHistoryService implements Cached {
     }
 
     /**
-     * Every month holding at least one completed event of {@code kind}, newest first.  Cached per kind.  A failing
+     * Every month holding at least one completed event of {@code kind}, newest first.  Cached per kind for
+     * {@link #LIVE_TTL_MS}, so a new month appears once its first event completes.  A failing
      * query propagates (the endpoint then fails) and nothing is cached, rather than caching an empty list that would
      * hide every month until the next cache clear.
      */
     public List<String> getAvailableMonths(String kind) {
         requireKind(kind);
         List<String> cached = _availableMonths.get(kind);
-        if (cached != null)
+        if (cached != null && isFresh("months/" + kind))
             return cached;
 
         List<String> rows = KIND_TOURNAMENT.equals(kind)
@@ -141,13 +154,14 @@ public class EventHistoryService implements Cached {
 
         List<String> result = List.copyOf(months);
         _availableMonths.put(kind, result);
+        _liveCachedAt.put("months/" + kind, System.currentTimeMillis());
         return result;
     }
 
     /**
      * Every completed event of {@code kind} in the given month, sorted by start date descending and then by name.
-     * Cached per (month, kind): the second call does not query.  A month that is still running is cached like any
-     * other, so events finishing later in it appear only after the admin panel's "Clear Server Cache".
+     * Cached per (month, kind): the second call does not query.  A finished month is cached for good; the current
+     * month is re-read every {@link #LIVE_TTL_MS}, so events finishing later in it appear within minutes.
      * <p>
      * If the month's main query fails, the exception propagates and nothing is cached.  If only the player counts
      * cannot be read, the events are returned with null counts but not cached, so the next request tries again.
@@ -155,8 +169,10 @@ public class EventHistoryService implements Cached {
     public List<EventSummary> getMonth(YearMonth month, String kind) {
         requireKind(kind);
         String key = cacheKey(month, kind);
+        YearMonth current = YearMonth.from(today());
+        boolean over = month.isBefore(current);
         List<EventSummary> cached = _months.get(key);
-        if (cached != null)
+        if (cached != null && (over || isFresh(key)))
             return cached;
 
         LocalDate from = month.atDay(1);
@@ -171,8 +187,13 @@ public class EventHistoryService implements Cached {
                 .thenComparing(event -> event.name == null ? "" : event.name));
 
         List<EventSummary> result = Collections.unmodifiableList(events);
-        if (complete)
+        // a finished month is kept; the current one is re-read after LIVE_TTL_MS; a future one is never cached (the
+        // month comes from the request, so caching those would let the map grow without limit)
+        if (complete && !month.isAfter(current)) {
             _months.put(key, result);
+            if (!over)
+                _liveCachedAt.put(key, System.currentTimeMillis());
+        }
         return result;
     }
 

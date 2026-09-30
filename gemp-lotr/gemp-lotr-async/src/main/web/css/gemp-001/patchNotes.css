@@ -401,6 +401,12 @@
 	cursor: default;
 }
 
+/* twilight icons ((1) / :1twilight:): the SVGs are drawn in black (fill: currentColor, which an <img> can't inherit), so
+   on this dark page they are turned white: a white disc with the digit cut out */
+.patchnotes img.patchnote-culture[src*="/twilight_"] {
+	filter: invert(1);
+}
+
 /* <details><summary>: the summary is a button, in the hall's jQuery UI button look (default, hover / focus, and
    pressed while open), with a triangle that turns when it opens */
 .patchnote-body details {

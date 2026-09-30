@@ -2,8 +2,10 @@
 // Hovering or focusing it, or clicking/tapping it, shows a small popup with the status, the server time of the last
 // successful update and, when the hall can no longer update by itself, what to do about it.  The popup never opens by
 // itself; a visually hidden live region announces each change of state (with its reason when disconnected) instead.
-// States: connecting, connected, reconnecting, disconnected, and loggedout (a visitor who is not logged in: neutral grey,
-// "Not logged in", with a "Log in" link beside it).
+// States: connecting, connected, shutdown, reconnecting, disconnected, and loggedout (a visitor who is not logged in:
+// neutral grey, "Not logged in", with a "Log in" link beside it).  shutdown (yellow) is "connected, but the server is in
+// shutdown mode ahead of a restart" (the hall update's shutdown="true"); a connection problem (amber reconnecting, red
+// disconnected) shows instead of it, and the next good update puts it back.
 var HallConnectionIndicator = Class.extend({
 	root: null,
 	button: null,
@@ -20,6 +22,7 @@ var HallConnectionIndicator = Class.extend({
 	LABELS: {
 		connecting: "Connecting",
 		connected: "Connected",
+		shutdown: "Shutdown",
 		reconnecting: "Reconnecting",
 		disconnected: "Disconnected",
 		loggedout: "Not logged in"
@@ -28,6 +31,9 @@ var HallConnectionIndicator = Class.extend({
 	STATUS: {
 		connecting: "Connecting to the Game Hall…",
 		connected: "Connected: the Game Hall is updating live.",
+		shutdown: "Shutdown: the server will restart for an update when the games in progress end. You can finish or "
+			+ "watch games, but can't start or join tables, bot games or tournament queues until then; waiting tables "
+			+ "and queues were closed.",
 		reconnecting: "Reconnecting: the Game Hall lost contact with the server and is retrying.",
 		disconnected: "Disconnected: the Game Hall is not updating.",
 		loggedout: "Not logged in: log in to see the Game Hall's tables and chat and to play."
@@ -122,7 +128,9 @@ var HallConnectionIndicator = Class.extend({
 			this.signin.prop("hidden", state !== "loggedout");
 		if (changed) {
 			// Screen readers hear the change (and, once the hall has stopped, why) without the popup being shown.
-			var spoken = state === "loggedout" ? "Not logged in." : "Game Hall " + this.LABELS[state].toLowerCase() + ".";
+			var spoken = state === "loggedout" ? "Not logged in."
+				: state === "shutdown" ? "Server in shutdown mode: new games can't be started until it restarts."
+				: "Game Hall " + this.LABELS[state].toLowerCase() + ".";
 			if (state === "disconnected" && this.detail != null && this.detail.message)
 				spoken += " " + this.detail.message;
 			this.live.text(spoken);
@@ -130,13 +138,14 @@ var HallConnectionIndicator = Class.extend({
 		this.render();
 	},
 
-	// serverTime: the server clock at this update, formatted as the main bar shows it
-	updated: function (detail, serverTime) {
+	// serverTime: the server clock at this update, formatted as the main bar shows it; shutdown: the update said the
+	// server is in shutdown mode
+	updated: function (detail, serverTime, shutdown) {
 		this.lastUpdate = serverTime || null;
-		// a message given while connected (e.g. "reconnected after a pause") stays until the next change of state
-		if (this.state === "connected" && detail == null)
+		// a message given while connected (e.g. "reconnected after a pause") stays until the connection changes
+		if ((this.state === "connected" || this.state === "shutdown") && detail == null)
 			detail = this.detail;
-		this.set("connected", detail);
+		this.set(shutdown ? "shutdown" : "connected", detail);
 	},
 
 	render: function () {
@@ -721,7 +730,8 @@ var GempLotrHallUI = Class.extend({
 		this.pollFull = false;
 		this.resubscribed = false;
 		this.pollFailures = 0;
-		this.connection.updated(detail, this.serverTimeOf(xml));
+		var root = xml != null && xml.documentElement != null ? xml.documentElement : null;
+		this.connection.updated(detail, this.serverTimeOf(xml), root != null && root.getAttribute("shutdown") === "true");
 	},
 
 	// The server clock of a poll answer, as the main bar shows it: its serverTime, else serverTimeMs formatted the same

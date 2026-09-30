@@ -15,16 +15,28 @@ import java.util.regex.Pattern;
  * the ones Help › PC Errata's Culture column shows ({@code images/cultures/<code>.png}, 20px tall, each at its own
  * width).  An unknown name is left as it is written.
  * <p>
+ * Twilight icons ride along: {@code (0)}..{@code (9)} and {@code (X)} (upper case only; one digit, so {@code (10)} stays
+ * text), and {@code :0twilight:}..{@code :9twilight:} / {@code :xtwilight:} (any case), become the twilight cost icons
+ * {@code images/cultures/twilight_<n>.svg}, named "(1) twilight" and so on.  Same places as the culture icons.
+ * <p>
  * Where tokens count is up to the caller: {@link PatchNoteRenderer} looks only at plain text (not code, not the text
  * of a link or an image, not a {@code [[card link]]}); {@link #find} itself skips card links and the {@code [x][y]} /
  * {@code [x](y)} / {@code ![x]} shapes.
  */
 public final class CultureIcons {
-    /** The icon of one culture: its file in {@code images/cultures/} (without .png) and its English name. */
-    public record Icon(String code, String name) {
+    /**
+     * The icon of one culture (or twilight cost): its code (for a culture, its file in {@code images/cultures/} without
+     * .png), its English name (alt text and tooltip) and its file in {@code images/cultures/}.
+     */
+    public record Icon(String code, String name, String file) {
+        /** a culture: {@code images/cultures/<code>.png} */
+        public Icon(String code, String name) {
+            this(code, name, code + ".png");
+        }
+
         /** relative to hall.html */
         public String src() {
-            return "images/cultures/" + code + ".png";
+            return "images/cultures/" + file;
         }
     }
 
@@ -34,6 +46,9 @@ public final class CultureIcons {
 
     /** every name a note can use (lower case) -> its icon, in README order */
     public static final Map<String, Icon> ALIASES;
+
+    /** twilight cost ("0".."9", "X") -> its icon */
+    public static final Map<String, Icon> TWILIGHT;
 
     static {
         Map<String, Icon> aliases = new LinkedHashMap<>();
@@ -61,6 +76,13 @@ public final class CultureIcons {
         add(aliases, "spider", "Spider", "spider", "spiders");
         add(aliases, "troll", "Troll", "troll", "trolls");
         ALIASES = Collections.unmodifiableMap(aliases);
+
+        Map<String, Icon> twilight = new LinkedHashMap<>();
+        for (String cost : List.of("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "X")) {
+            String code = "twilight_" + cost.toLowerCase(Locale.ROOT);
+            twilight.put(cost, new Icon(code, "(" + cost + ") twilight", code + ".svg"));
+        }
+        TWILIGHT = Collections.unmodifiableMap(twilight);
     }
 
     private static void add(Map<String, Icon> aliases, String code, String name, String... names) {
@@ -78,6 +100,15 @@ public final class CultureIcons {
             "(?<![\\p{L}\\p{N}_/\\\\]):([A-Za-z][A-Za-z_-]*[A-Za-z]):(?![\\p{L}\\p{N}_])"
                     + "|(?<![\\p{L}\\p{N}_/\\\\\\[\\]!])\\[([A-Za-z][A-Za-z_-]*[A-Za-z])](?![\\[(:\\]])");
 
+    /**
+     * {@code (1)} / {@code (X)} (not right after a letter, digit, {@code ]} or {@code \}, nor right before a letter or
+     * digit) or {@code :1twilight:} / {@code :xtwilight:} (any case; not right after a letter, digit, {@code /} or
+     * {@code \}, nor right before a letter or digit).
+     */
+    public static final Pattern TWILIGHT_TOKEN = Pattern.compile(
+            "(?<![\\p{L}\\p{N}_\\]\\\\])\\(([0-9X])\\)(?![\\p{L}\\p{N}_])"
+                    + "|(?<![\\p{L}\\p{N}_/\\\\]):([0-9xX])(?i:twilight):(?![\\p{L}\\p{N}_])");
+
     private CultureIcons() {
     }
 
@@ -86,10 +117,20 @@ public final class CultureIcons {
         return name == null ? null : ALIASES.get(name.toLowerCase(Locale.ROOT));
     }
 
-    /** The tokens in a piece of text that name a culture, outside {@code [[card links]]}; in order. */
+    /** @return the icon behind a code ({@link Icon#code()}: a culture's or {@code twilight_1}), or null */
+    public static Icon byCode(String code) {
+        if (code != null && code.startsWith("twilight_")) {
+            String cost = code.substring("twilight_".length()).toUpperCase(Locale.ROOT);
+            Icon icon = TWILIGHT.get(cost);
+            return icon != null && icon.code().equals(code) ? icon : null;
+        }
+        return icon(code);
+    }
+
+    /** The tokens in a piece of text that name a culture or a twilight cost, outside {@code [[card links]]}; in order. */
     public static List<Match> find(String text) {
         List<Match> matches = new ArrayList<>();
-        if (text == null || (text.indexOf(':') < 0 && text.indexOf('[') < 0))
+        if (text == null || (text.indexOf(':') < 0 && text.indexOf('[') < 0 && text.indexOf('(') < 0))
             return matches;
         List<int[]> cardLinks = new ArrayList<>();
         Matcher card = PatchNoteRenderer.CARD_LINK.matcher(text);
@@ -102,7 +143,26 @@ public final class CultureIcons {
                 continue;
             matches.add(new Match(matcher.start(), matcher.end(), icon));
         }
+        Matcher twilight = TWILIGHT_TOKEN.matcher(text);
+        boolean added = false;
+        while (twilight.find()) {
+            String cost = twilight.group(1) != null ? twilight.group(1) : twilight.group(2).toUpperCase(Locale.ROOT);
+            if (inside(cardLinks, twilight.start(), twilight.end()) || overlaps(matches, twilight.start(), twilight.end()))
+                continue;
+            matches.add(new Match(twilight.start(), twilight.end(), TWILIGHT.get(cost)));
+            added = true;
+        }
+        if (added)
+            matches.sort((a, b) -> Integer.compare(a.start(), b.start()));
         return matches;
+    }
+
+    private static boolean overlaps(List<Match> matches, int start, int end) {
+        for (Match match : matches) {
+            if (start < match.end() && end > match.start())
+                return true;
+        }
+        return false;
     }
 
     private static boolean inside(List<int[]> ranges, int start, int end) {

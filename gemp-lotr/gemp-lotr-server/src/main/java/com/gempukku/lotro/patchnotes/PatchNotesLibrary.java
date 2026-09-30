@@ -245,7 +245,10 @@ public class PatchNotesLibrary implements Cached {
                 }
                 feed = feedOf(entries);
             }
-            _feeds.put(key, feed);
+            // only cache All and the known tags: the endpoint is public, so caching whatever tag a request names would
+            // let anyone grow this map without limit (an unknown tag matches only notes that use it, which is cheap)
+            if (key.isEmpty() || PatchNote.isKnownTag(key))
+                _feeds.put(key, feed);
         }
         return feed;
     }

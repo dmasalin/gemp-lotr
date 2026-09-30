@@ -12,6 +12,12 @@ public interface HallInfoVisitor {
     public void motd(String motd);
 
     /**
+     * Whether the server is in shutdown mode (an admin put it there ahead of a restart): games in progress carry on, but
+     * no new table, bot game or tournament queue can be started or joined.
+     */
+    public void shutdownMode(boolean shutdown);
+
+    /**
      * @param createdAt  when the table was opened (epoch ms, server clock)
      * @param invitedYou the table is invite-only and the player being visited is its invitee
      */

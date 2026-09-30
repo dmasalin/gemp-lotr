@@ -114,6 +114,7 @@ This is [CommonMark](https://commonmark.org/help/), rendered on the server with 
 - card links, which open the card in the zoomable card display (see [Card links](#card-links) below): `[[Cleaving Blow]]`
 - `---` for a horizontal rule
 - culture icons: `:isengard:` or `[isengard]` (see [Culture icons](#culture-icons) below)
+- twilight icons: `(1)`, `(X)` or `:1twilight:` (see [Twilight icons](#twilight-icons) below)
 - inline HTML for what Markdown can't express, for example `<span style="color:red">new text</span>` for errata colours, `<br>`, `<u>`, `<sub>`/`<sup>`, `<table>` and `<details><summary>`
 - `<details><summary>Show the list</summary> ... </details>` folds a long part away. Its summary shows as a button with a ▸ that turns when it opens. Leave a blank line after `<summary>...</summary>` so the Markdown inside is still Markdown.
 
@@ -145,6 +146,17 @@ Write a culture's name between colons or single square brackets, and it shows as
 For example, `adds a [dunland] token` or `each :uruk-hai: minion`. They work in the notes, in a `summary`, in past announcements shown here, and in the automatic pop-up.
 
 A name that isn't in the table stays as written. So does a token in `` `code` ``, inside a `[[card link]]`, in the text of a link (`[isengard](...)`, `[isengard][ref]`), in a URL, or right after a letter or digit (`word:men:`). To show the brackets or colons themselves, put them in a code span.
+
+## Twilight icons
+
+A twilight cost written the way the cards write it, a single digit or `X` in round brackets, shows as the twilight cost icon, at the size of the text, with "(1) twilight" (and so on) as its tooltip: `remove (1)`, `add (X)`. You can also write `:0twilight:` to `:9twilight:` and `:xtwilight:` (case doesn't matter there).
+
+- `(X)` must be an upper-case X: `(x)` stays as written.
+- One digit only: `(10)`, `(25)` or `(2023)` stay as written.
+- Not right after a letter, digit or `]`, nor right before a letter or digit: `f(1)` and `(1)st` stay as written.
+- The same places as culture icons: not in `` `code` ``, a `[[card link]]`, the text of a link or a URL. To show `(1)` itself, put it in a code span.
+
+They work in the notes, in a `summary`, in past announcements shown here, and in the automatic pop-up.
 
 ## Card links
 

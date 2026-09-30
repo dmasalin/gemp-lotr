@@ -40,7 +40,8 @@ import java.util.regex.Pattern;
  *     {@code # heading}, the note's {@code summary} (plain text; a note without one gets its first paragraph
  *     instead), its first image and a bold "Read the full patch notes here" link to {@code #patch-notes/<slug>}.
  *     Culture tokens ({@code :isengard:}, {@link CultureIcons}) in the copied text become the culture's icon as a
- *     Markdown image (hall.css sizes it to the text in the popup).</li>
+ *     Markdown image (hall.css sizes it to the text in the popup); so do twilight tokens ({@code (1)}, {@code (X)},
+ *     {@code :1twilight:}).</li>
  * </ul>
  * The marker ({@code <!-- gemp-patchnote:<slug> -->}, the first line) is how an announcement is known to belong to a
  * note: it is the dedupe key (see {@link TransferDAO#addServerAnnouncementIfAbsent}, which checks and inserts under a

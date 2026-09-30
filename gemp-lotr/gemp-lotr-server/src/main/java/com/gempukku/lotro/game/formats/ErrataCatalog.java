@@ -46,6 +46,15 @@ public final class ErrataCatalog {
 
     private static final Logger LOGGER = LogManager.getLogger(ErrataCatalog.class);
 
+    /**
+     * The culture's English name as this page shows it (tooltip, sort, frame heading): the Culture enum's label, except
+     * that WRAITH reads "Ringwraith", the culture's name in play.  The enum's "Wraith" is left alone: it is shared with
+     * card parsing and the rest of the server.
+     */
+    static String cultureLabel(Culture culture) {
+        return culture == Culture.WRAITH ? "Ringwraith" : culture.getHumanReadable();
+    }
+
     private ErrataCatalog() {
     }
 
@@ -172,7 +181,7 @@ public final class ErrataCatalog {
                 entry.put("collInfo", collInfo);
             Culture culture = card.getCulture();
             if (culture != null) {
-                entry.put("culture", culture.getHumanReadable());
+                entry.put("culture", cultureLabel(culture));
                 entry.put("cultureCode", culture.name().toLowerCase(Locale.ROOT));
             }
             entry.put("side", humanReadable(card.getSide()));

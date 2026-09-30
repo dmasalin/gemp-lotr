@@ -166,7 +166,7 @@
 //			}
 //
 //		]
-//		gametext: Beacon. To play, hinder 4 beacons.<br>This cannot be discarded or hindered.\Your [Gondor] Men are considered [Rohan] Men.  Your [Rohan] Men are considered [Gondor] Men.<br>Maneuver: Hinder X beacons to play X items from your discard pile on your Men.
+//		gametext: Beacon. To play, hinder 4 beacons.<br>This cannot be discarded or hindered.<br>Your [Gondor] Men are considered [Rohan] Men.  Your [Rohan] Men are considered [Gondor] Men.<br>Maneuver: Hinder X beacons to play X items from your discard pile on your Men.
 //		lore: "And so King Théoden departed from his own realm, and mile by mile the long road wound away..."
 //		promotext: ""
 //		alts: {
@@ -266,7 +266,7 @@
 			}
 
 		]
-		gametext: Beacon. To play, hinder 4 beacons.<br>This cannot be discarded or hindered.\Your [Gondor] Men are considered [Rohan] Men.  Your [Rohan] Men are considered [Gondor] Men.<br>Fellowship: Hinder X beacons to play X items from your discard pile on your Men.
+		gametext: Beacon. To play, hinder 4 beacons.<br>This cannot be discarded or hindered.<br>Your [Gondor] Men are considered [Rohan] Men.  Your [Rohan] Men are considered [Gondor] Men.<br>Fellowship: Hinder X beacons to play X items from your discard pile on your Men.
 		lore: "And so King Théoden departed from his own realm, and mile by mile the long road wound away..."
 		promotext: ""
 		alts: {

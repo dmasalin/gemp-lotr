@@ -44,7 +44,8 @@ import java.util.regex.Pattern;
  * Markdown link are left alone, so {@code `[[1_5]]`} shows the syntax itself.
  * <p>
  * Culture icons: {@code :isengard:} or {@code [isengard]} becomes the culture's icon ({@link CultureIcons}), in plain
- * text only (not in code, a link's text, an image's description or a card link).
+ * text only (not in code, a link's text, an image's description or a card link).  So do the twilight icons,
+ * {@code (1)} / {@code (X)} and {@code :1twilight:}.
  */
 public class PatchNoteRenderer {
     /** Where the patch notes folder is served from, relative to hall.html. */
@@ -192,7 +193,7 @@ public class PatchNoteRenderer {
             img.attr("loading", "lazy");
         for (Element culture : clean.select("span[data-culture]")) {
             String[] marker = culture.attr("data-culture").split(":", 2);
-            CultureIcons.Icon icon = marker.length == 2 && marker[1].equals(cultureKey) ? CultureIcons.icon(marker[0]) : null;
+            CultureIcons.Icon icon = marker.length == 2 && marker[1].equals(cultureKey) ? CultureIcons.byCode(marker[0]) : null;
             if (icon == null)
                 culture.removeAttr("data-culture");     // written by hand in the note: an ordinary span
             else
@@ -228,7 +229,8 @@ public class PatchNoteRenderer {
             @Override
             public void visit(Text text) {
                 String literal = text.getLiteral();
-                if (literal.indexOf(':') >= 0 || literal.indexOf('[') >= 0 || literal.indexOf(']') >= 0)
+                if (literal.indexOf(':') >= 0 || literal.indexOf('[') >= 0 || literal.indexOf(']') >= 0
+                        || literal.indexOf('(') >= 0)
                     texts.add(text);
             }
         });
