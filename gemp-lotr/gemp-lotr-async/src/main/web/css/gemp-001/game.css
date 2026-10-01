@@ -649,6 +649,27 @@ body {
     border: solid #333;
 }
 
+/* An inactive card that can still be chosen or used (e.g. a Free Peoples card stacked on Library of Orthanc, picked
+   as a cost) keeps its choice highlight and is only lightly dimmed; the inactive border above used to hide the
+   highlight, so such cards looked locked (#1104). */
+.card.inactive.selectableCard > .borderOverlay {
+    border-color: #7faf7f;
+}
+
+.card.inactive.actionableCard > .borderOverlay {
+    border-color: #7f7fff;
+}
+
+.card.inactive.selectedCard > .borderOverlay {
+    border-color: #009f9f;
+}
+
+.card.inactive.selectableCard img,
+.card.inactive.actionableCard img,
+.card.inactive.selectedCard img {
+    filter: grayscale(0.3) brightness(0.85);
+}
+
 .card.inactive .cardStrength, 
 .card.inactive .cardVitality, 
 .card.inactive .cardSiteNumber, 

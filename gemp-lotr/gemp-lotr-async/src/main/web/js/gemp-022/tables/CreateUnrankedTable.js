@@ -84,10 +84,13 @@ class CreateUnrankedTable extends TableFlow {
 		this.deckSelector.playerDeckDropdown.on("change", followDeck);
 		this.deckSelector.libraryDeckDropdown.on("change", followDeck);
 
-		// Picking a format by hand brings back the deck last used in it, if any.
+		// Picking a format by hand brings back the deck last used in it, if any - unless the player picked the current
+		// deck by hand: a Standard deck taken into an Expanded table must not be swapped for the last Expanded deck.
 		this.formatDropdown.on("change", function (event) {
 			that.showFormatInfo();
 			if (that.syncing || !event.originalEvent)
+				return;
+			if (that.deckSelector.hasUserChoice())
 				return;
 			var remembered = that.deckSelector.readMemory()[that.formatDropdown.val()];
 			if (remembered == null)
