@@ -24,6 +24,8 @@ class SelectDeck {
 	pendingRestore = false;
 	restoreKey = null;
 	fixedFirstOption = null;
+	// true while the current deck is one the player picked by hand (rather than restored or defaulted by the flow)
+	chosenByUser = false;
 
 	static MAX_REMEMBERED = 12;
 
@@ -42,13 +44,16 @@ class SelectDeck {
 
 		this.setFlow(cookie || "deck");
 
-		this.playerDeckDropdown.on("change.selectDeck", function () {
+		// a change with an originalEvent is the player's own pick; select() and the restores trigger change without one
+		this.playerDeckDropdown.on("change.selectDeck", function (event) {
 			if (that.playerDeckDropdown.val())
 				that.libraryDeckDropdown.val("");
+			that.chosenByUser = !!event.originalEvent;
 		});
-		this.libraryDeckDropdown.on("change.selectDeck", function () {
+		this.libraryDeckDropdown.on("change.selectDeck", function (event) {
 			if (that.libraryDeckDropdown.val())
 				that.playerDeckDropdown.val("");
+			that.chosenByUser = !!event.originalEvent;
 		});
 
 		this.deckManager.registerUpdate(() => that.rebuild());
@@ -70,6 +75,7 @@ class SelectDeck {
 
 	rebuild() {
 		var previous = this.getSelection();
+		var previousChosenByUser = this.chosenByUser;
 
 		this.playerDeckDropdown.empty();
 		if (this.fixedFirstOption != null) {
@@ -98,8 +104,10 @@ class SelectDeck {
 			if (remembered != null && this.select(remembered.name, remembered.source))
 				return;
 		}
-		if (previous != null && this.select(previous.name, previous.source))
+		if (previous != null && this.select(previous.name, previous.source)) {
+			this.chosenByUser = previousChosenByUser;     // a refreshed deck list keeps a hand-picked deck hand-picked
 			return;
+		}
 		this.selectDefault();
 	}
 
@@ -132,6 +140,7 @@ class SelectDeck {
 	}
 
 	clear() {
+		this.chosenByUser = false;
 		this.playerDeckDropdown.val("");
 		this.libraryDeckDropdown.val("");
 	}
@@ -164,6 +173,7 @@ class SelectDeck {
 	// On opening the flow: select the last deck used under `key` (format code, league code...; null = last overall)
 	// as soon as the deck lists are known.  Applied now if they already are.
 	requestRestore(key) {
+		this.chosenByUser = false;
 		this.restoreKey = (key == null || key === "") ? null : String(key);
 		this.pendingRestore = true;
 		if (this.deckManager.loaded) {
@@ -171,6 +181,19 @@ class SelectDeck {
 			if (remembered != null && this.select(remembered.name, remembered.source))
 				this.pendingRestore = false;
 		}
+	}
+
+	// Whether the current deck is one the player picked by hand in this flow.
+	hasUserChoice() {
+		return this.chosenByUser && this.getSelection() != null;
+	}
+
+	// As requestRestore, but leaves a deck the player picked by hand alone: picking a format or league then brings back
+	// the deck last used in it only when the current deck was restored or defaulted, not chosen (e.g. a Standard deck
+	// the player wants to take into an Expanded table stays selected).
+	restoreUnlessChosen(key) {
+		if (!this.hasUserChoice())
+			this.requestRestore(key);
 	}
 
 	// The remembered {name, source} for key, falling back to the last one overall.

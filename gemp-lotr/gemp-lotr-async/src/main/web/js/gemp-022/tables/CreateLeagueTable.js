@@ -30,7 +30,7 @@ class CreateLeagueTable extends TableFlow {
 		this.formatManager.registerLeagueDropdownUpdate(this.leagueDropdown);
 		this.leagueDropdown.on("change", function (event) {
 			if (event.originalEvent)
-				that.deckSelector.requestRestore(that.leagueDropdown.val());
+				that.deckSelector.restoreUnlessChosen(that.leagueDropdown.val());
 		});
 	}
 

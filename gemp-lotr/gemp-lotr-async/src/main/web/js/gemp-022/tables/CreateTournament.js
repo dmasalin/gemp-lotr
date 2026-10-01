@@ -229,7 +229,7 @@ class CreateTournament extends TableFlow {
 		var formatInfo = $("#help-tournament-format");
 		if (gameType === "constructed") {
 			TableFlow.renderFormatInfo(formatInfo, this.formatManager, this.formatDropdown.val());
-			this.deckSelector.requestRestore(this.formatDropdown.val());
+			this.deckSelector.restoreUnlessChosen(this.formatDropdown.val());
 		} else {
 			formatInfo.empty()
 				.append($("<div class='format-intro'></div>").text(TableFlow.FORMAT_INTRO))
