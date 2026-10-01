@@ -290,7 +290,7 @@ const packBlueprints = {
 
     "(S)Shelobs Lair - Starter": "/gemp-lotr/images/boosters/starter_selection.png",
     "Shelobs Lair - Cirith Ungol Orcs/Mountains Starter": "/gemp-lotr/images/boosters/gala_2026/Shelobs_Lair_Sealed-Cirith_Ungol_Orcs-Mountain_Dwarves.PNG",
-    "Shelobs Lair - CU Uruks/LA Starter": "/gemp-lotr/images/boosters/gala_2026/Shelobs_Lair_Sealed-Cirith_Ungol_Uruks-Last_Alliance.PNG",
+    "Shelobs Lair - CU Uruks/Last Alliance Starter": "/gemp-lotr/images/boosters/gala_2026/Shelobs_Lair_Sealed-Cirith_Ungol_Uruks-Last_Alliance.PNG",
     "Shelobs Lair - Shelob/Smeagol Starter": "/gemp-lotr/images/boosters/gala_2026/Shelobs_Lair_Sealed-Shelob-Gollum.PNG",
 
     "(S)Knighted - Starter": "/gemp-lotr/images/boosters/starter_selection.png",
@@ -322,6 +322,12 @@ const packBlueprints = {
     "Alphabet BFLW - FFF Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_BFLW_Sealed-FFF.PNG",
     "Alphabet BFLW - LLL Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_BFLW_Sealed-LLL.PNG",
     "Alphabet BFLW - WWW Starter": "/gemp-lotr/images/boosters/gala_2026/Alphabet_BFLW_Sealed-WWW.PNG",
+
+    "(S)The Great Eye - Starter": "/gemp-lotr/images/boosters/starter_selection.png",
+    "The Great Eye - Dwarves+Gondor/Nazgul Starter": "/gemp-lotr/images/boosters/gala_2026/The_Great_Eye_Sealed-Dwarves+Gondor-Nazgul.PNG",
+    "The Great Eye - Elves+Hobbits/Sauron Starter": "/gemp-lotr/images/boosters/gala_2026/The_Great_Eye_Sealed-Elves+Hobbits-Sauron.PNG",
+    "The Great Eye - Gandalf+Theoden/Sauron Starter": "/gemp-lotr/images/boosters/gala_2026/The_Great_Eye_Sealed-Gandalf+Theoden-Sauron.PNG",
+    "The Great Eye - Gondor/Isengard Starter": "/gemp-lotr/images/boosters/gala_2026/The_Great_Eye_Sealed-Gondor-Isengard.PNG",
         
     "Fellowship Site Pack": "/gemp-lotr/images/boosters/gala_2025/fellowship-site-pack.jpg",
     "Towers Site Pack": "/gemp-lotr/images/boosters/gala_2025/towers-site-pack.jpg",
